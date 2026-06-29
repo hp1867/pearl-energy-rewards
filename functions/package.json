@@ -1,0 +1,17 @@
+{
+  "name": "pearl-energy-functions",
+  "description": "Cloud Functions for Pearl Energy Rewards — wallet pass issuance",
+  "type": "module",
+  "engines": { "node": "20" },
+  "main": "index.js",
+  "scripts": {
+    "serve": "firebase emulators:start --only functions",
+    "deploy": "firebase deploy --only functions"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "firebase-admin": "^12.3.0",
+    "firebase-functions": "^5.0.1"
+  }
+}

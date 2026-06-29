@@ -1,0 +1,144 @@
+:root {
+  /* ---- Pearl Energy 3D Design System (Stitch "Kinetic Solar Noir" → light brand) ---- */
+  /* Material-3 derived tokens pulled from the Stitch project */
+  --primary: #00408b;            /* navy — headings, active nav, numbers */
+  --primary-container: #0057b8;  /* Pearl blue — fills, gradient start */
+  --secondary: #0060a9;
+  --secondary-container: #4ba1fd;
+  --on-primary: #ffffff;
+  --on-primary-container: #bfd2ff;
+
+  --bg: #f9f9fc;                 /* background / surface */
+  --surface: #f9f9fc;
+  --card: #ffffff;              /* surface-container-lowest */
+  --surface-low: #f3f3f6;       /* surface-container-low */
+  --surface-c: #eeeef0;         /* surface-container */
+  --surface-high: #e8e8ea;      /* surface-container-high */
+  --surface-variant: #e2e2e5;
+
+  --ink: #1a1c1e;               /* on-surface */
+  --ink-soft: #424752;          /* on-surface-variant */
+  --muted: #727784;             /* outline */
+  --outline-variant: #c2c6d4;
+  --line: rgba(114, 119, 132, 0.18);
+  --error: #ba1a1a;
+
+  /* legacy aliases so existing components inherit the new palette */
+  --blue: #0057b8;
+  --blue-600: #0060a9;
+  --blue-light: #4da3ff;
+  --blue-glow: rgba(0, 87, 184, 0.4);
+  --white: #ffffff;
+  --silver: #f3f3f6;
+  --orange: #f37021;
+
+  /* gradients */
+  --grad-blue: linear-gradient(135deg, #0057b8 0%, #4da3ff 100%);          /* primary button */
+  --grad-blue-deep: linear-gradient(150deg, #0057b8 0%, #0060a9 100%);     /* hero / balance card */
+  --grad-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.4) 100%);
+  --grad-gold: linear-gradient(135deg, #ffdf00, #d4af37 55%, #c5a017);     /* gold-shimmer */
+  --grad-platinum: linear-gradient(135deg, #5b6b85, #c7d2e3 45%, #3c485e);
+
+  /* soft, low-opacity elevation (no harsh drop shadows) */
+  --shadow-sm: 0 4px 20px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.06);
+  --shadow-blue: 0 12px 40px rgba(0, 87, 184, 0.18);
+
+  --r-lg: 24px;   /* 3xl */
+  --r-md: 16px;   /* 2xl */
+  --r-sm: 12px;   /* xl  */
+
+  font-family: 'Hanken Grotesk', system-ui, -apple-system, sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body, #root { height: 100%; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+  font-weight: 400;
+}
+
+button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+input, select { font-family: inherit; }
+h1, h2, h3, h4 { font-family: 'Hanken Grotesk', sans-serif; letter-spacing: -0.01em; font-weight: 700; }
+
+::-webkit-scrollbar { width: 0; height: 0; }
+
+/* ---------- App shell / phone frame ---------- */
+.stage { min-height: 100%; display: grid; place-items: center; padding: 24px; }
+
+.phone {
+  position: relative;
+  width: 100%;
+  max-width: 412px;
+  height: min(880px, calc(100vh - 48px));
+  background: var(--bg);
+  border-radius: 46px;
+  overflow: hidden;
+  box-shadow: 0 0 0 11px #0c1424, 0 0 0 13px #243149, 0 50px 120px rgba(8, 22, 48, 0.5);
+}
+@media (max-width: 480px) {
+  .stage { padding: 0; }
+  .phone { max-width: none; height: 100vh; height: 100dvh; border-radius: 0; box-shadow: none; }
+}
+
+.screen { position: absolute; inset: 0; display: flex; flex-direction: column; overflow: hidden; }
+.scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: 112px; }
+
+/* ---------- Reusable bits ---------- */
+.glass {
+  background: var(--grad-glass);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 10px 18px; border-radius: 999px;
+  font-size: 13px; font-weight: 600; white-space: nowrap;
+  background: var(--card); color: var(--ink-soft);
+  border: 1px solid var(--surface-variant); box-shadow: var(--shadow-sm);
+}
+.chip.active { background: var(--primary-container); color: #fff; border-color: transparent; box-shadow: var(--shadow-sm); }
+
+.pill { font-size: 11px; font-weight: 700; padding: 5px 10px; border-radius: 6px; letter-spacing: 0.04em; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+  width: 100%; padding: 15px; border-radius: 999px;
+  font-weight: 700; font-size: 15px;
+  background: var(--grad-blue); color: #fff;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.25), 0 8px 22px rgba(0, 87, 184, 0.22);
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+.btn:active { transform: scale(0.98); filter: brightness(1.04); }
+.btn.ghost { background: #fff; color: var(--primary); box-shadow: var(--shadow-sm); border: 1px solid var(--outline-variant); }
+.btn.dark { background: #000; color: #fff; box-shadow: var(--shadow-md); }
+
+.section-title { display: flex; align-items: center; justify-content: space-between; margin: 24px 20px 12px; }
+.section-title h3 { font-size: 20px; font-weight: 600; color: var(--ink); }
+.section-title button { font-size: 13px; font-weight: 600; color: var(--primary); }
+
+.label { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+.h-scroll { display: flex; gap: 16px; overflow-x: auto; padding: 4px 20px 8px; scroll-snap-type: x mandatory; }
+.h-scroll > * { scroll-snap-align: start; flex: 0 0 auto; }
+
+.fade-mask { -webkit-mask-image: linear-gradient(90deg, transparent, #000 16px, #000 calc(100% - 16px), transparent); }
+
+/* gold-shimmer member badge (from Stitch) */
+.gold-shimmer { position: relative; overflow: hidden; background: linear-gradient(135deg, #ffdf00, #d4af37, #c5a017); }
+.gold-shimmer::before {
+  content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+  background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.35) 50%, rgba(255,255,255,0) 100%);
+  transform: rotate(30deg); animation: shimmer 3s infinite linear;
+}
+@keyframes shimmer { 0% { transform: translateX(-100%) rotate(30deg); } 100% { transform: translateX(100%) rotate(30deg); } }
+
+.spin { animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
