@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Pearl Energy Rewards</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-family: 'Material Symbols Outlined';
+            font-weight: normal;
+            font-style: normal;
+            font-size: 24px;
+            line-height: 1;
+            letter-spacing: normal;
+            text-transform: none;
+            display: inline-block;
+            white-space: nowrap;
+            word-wrap: normal;
+            direction: ltr;
+            -webkit-font-feature-settings: 'liga';
+            -webkit-font-smoothing: antialiased;
+        }
+        
+        /* Hide scrollbar for horizontal scrolling areas */
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.04);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "error": "#ba1a1a",
+                        "outline": "#727784",
+                        "surface-variant": "#e2e2e5",
+                        "secondary-container": "#4ba1fd",
+                        "on-primary-fixed-variant": "#004493",
+                        "primary": "#00408b",
+                        "on-secondary-container": "#003663",
+                        "error-container": "#ffdad6",
+                        "secondary": "#0060a9",
+                        "surface-container-high": "#e8e8ea",
+                        "tertiary-fixed": "#e0e3e6",
+                        "on-secondary-fixed": "#001c38",
+                        "on-secondary-fixed-variant": "#004881",
+                        "on-tertiary-fixed-variant": "#44474a",
+                        "primary-container": "#0057b8",
+                        "surface-dim": "#dadadc",
+                        "on-error-container": "#93000a",
+                        "surface-container-highest": "#e2e2e5",
+                        "on-tertiary-fixed": "#191c1e",
+                        "tertiary-fixed-dim": "#c4c7ca",
+                        "surface-container": "#eeeef0",
+                        "background": "#f9f9fc",
+                        "secondary-fixed-dim": "#a2c9ff",
+                        "on-primary-container": "#bfd2ff",
+                        "on-primary-fixed": "#001a41",
+                        "surface-tint": "#0d5bbc",
+                        "primary-fixed-dim": "#adc7ff",
+                        "surface-container-low": "#f3f3f6",
+                        "on-primary": "#ffffff",
+                        "secondary-fixed": "#d3e4ff",
+                        "on-background": "#1a1c1e",
+                        "on-surface": "#1a1c1e",
+                        "on-error": "#ffffff",
+                        "inverse-primary": "#adc7ff",
+                        "surface": "#f9f9fc",
+                        "tertiary-container": "#585b5d",
+                        "on-tertiary": "#ffffff",
+                        "on-tertiary-container": "#d0d3d5",
+                        "surface-bright": "#f9f9fc",
+                        "inverse-surface": "#2f3133",
+                        "surface-container-lowest": "#ffffff",
+                        "on-surface-variant": "#424752",
+                        "primary-fixed": "#d8e2ff",
+                        "on-secondary": "#ffffff",
+                        "outline-variant": "#c2c6d4",
+                        "inverse-on-surface": "#f0f0f3",
+                        "tertiary": "#404346"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px",
+                        "2xl": "1rem",
+                        "3xl": "1.5rem"
+                    },
+                    "spacing": {
+                        "container-margin": "20px",
+                        "stack-gap": "16px",
+                        "element-inner-padding": "12px",
+                        "section-padding": "24px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Hanken Grotesk"],
+                        "label-caps": ["Hanken Grotesk"],
+                        "headline-lg": ["Hanken Grotesk"],
+                        "body-lg": ["Hanken Grotesk"],
+                        "headline-lg-mobile": ["Hanken Grotesk"],
+                        "headline-md": ["Hanken Grotesk"],
+                        "label-sm": ["Hanken Grotesk"],
+                        "display-pts": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                        "body-lg": ["18px", { "lineHeight": "26px", "fontWeight": "400" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "700" }],
+                        "headline-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
+                        "display-pts": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body-md text-body-md antialiased pb-24">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-md shadow-sm h-16 flex justify-between items-center px-container-margin transition-all duration-300">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full overflow-hidden border border-outline-variant bg-surface-container">
+<img alt="Profile avatar" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCHiWN2ADQMpDEd-nmHsd0IGS7DgZXzQBqOv3VFUAGxWworzfsdia63QkCEgS2a3g4q4hMF38Zb2U10fVap1yyZR1tMwvNOzOL50q-Ytws4KYBBE6Q5hjW1NEfWMNUu9dcABjgFxQQ6PlH6sO4_P3w43hXaPGNHx9N35mfWq7zZu8GWiyGWgaJJqyjgQvSsqquk0w21mADui70msS7nXS7utlbpNwma_RJ-XAvi9Vf0g2gAaiSGHcwUDRW7P5WoEFWRcSMst6-tiFBq"/>
+</div>
+<div>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Good Morning,</p>
+<h1 class="font-headline-md text-headline-md font-bold text-primary">Hard</h1>
+</div>
+</div>
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container transition-colors relative">
+<span class="material-symbols-outlined text-on-surface-variant">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full"></span>
+</button>
+</header>
+<!-- Main Content Canvas -->
+<main class="pt-20 px-container-margin flex flex-col gap-stack-gap">
+<!-- Summary Card (Points & Status) -->
+<section class="glass-card rounded-3xl p-section-padding relative overflow-hidden bg-gradient-to-br from-white to-surface-container-low">
+<div class="absolute -right-10 -top-10 w-32 h-32 bg-primary-container opacity-10 rounded-full blur-2xl"></div>
+<div class="flex justify-between items-start mb-6 relative z-10">
+<div>
+<h2 class="font-label-caps text-label-caps text-outline uppercase">Pearl Rewards</h2>
+<div class="flex items-baseline gap-1 mt-1">
+<span class="font-display-pts text-display-pts text-primary">1,250</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">pts</span>
+</div>
+</div>
+<div class="bg-secondary-container/20 px-3 py-1 rounded-full flex items-center gap-1 border border-secondary-container/30">
+<span class="material-symbols-outlined text-secondary text-[16px]" style="font-variation-settings: 'FILL' 1;">workspace_premium</span>
+<span class="font-label-caps text-label-caps text-secondary uppercase">Gold Member</span>
+</div>
+</div>
+<div class="relative z-10">
+<div class="flex justify-between mb-2">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Progress to Platinum</span>
+<span class="font-label-sm text-label-sm font-semibold text-primary">2,000 pts</span>
+</div>
+<div class="w-full h-2 bg-surface-variant rounded-full overflow-hidden">
+<div class="h-full bg-gradient-to-r from-primary-container to-secondary-container rounded-full" style="width: 62.5%;"></div>
+</div>
+<p class="font-label-sm text-label-sm text-outline mt-2 text-center">750 points away from next tier</p>
+</div>
+</section>
+<!-- Large Offer Carousel -->
+<section class="mt-2">
+<h3 class="font-headline-md text-headline-md text-on-surface mb-3">Featured Offers</h3>
+<div class="flex overflow-x-auto gap-4 hide-scrollbar snap-x snap-mandatory pb-4 -mx-container-margin px-container-margin">
+<!-- Coffee Banner -->
+<div class="min-w-[280px] w-[85%] snap-center rounded-2xl overflow-hidden relative shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white border border-outline-variant/30 flex-shrink-0">
+<div class="h-32 w-full relative bg-surface-container">
+<img alt="Premium coffee offer" class="w-full h-full object-cover" data-alt="A close-up shot of a steaming cup of artisan coffee being poured, capturing the rich, dark espresso and creamy milk foam. The setting is a modern, sunlit cafe with clean white tables and subtle glass elements reflecting light. The lighting is bright and inviting, emphasizing a premium, energetic morning mood that aligns with a clean, high-velocity corporate aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB799Ktj0HcWFWUh8dHhjn2N2Vvc31J-Jj6EiOuwDxuZEDBwHrJzrbq0kbF7JUg2nIFDF_IY-ahUqoWvNJsYZnwP9D4aOITwVhZ_GFAcRr365aCAJA3TLFLdq9XvS08VRvFTWpwkyqMi38bF1cI6Nt7ZPvo2H3OS6zTTYZtxcBtkeowq_Qk8zSA_Se_FB1ZDp5KMlbTwJU1q-1Rvb-sFLlgETF_1pgqpKbRfrlKWKAOgGrcVN9ihhjK2SWy_2bEa_PAB-omzaROw26N"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+<div class="absolute bottom-3 left-3 bg-error text-on-error px-2 py-1 rounded font-label-caps text-label-caps">FREE</div>
+</div>
+<div class="p-element-inner-padding bg-white">
+<h4 class="font-headline-md text-headline-md text-on-surface">Morning Brew</h4>
+<p class="font-label-sm text-label-sm text-on-surface-variant mt-1">Claim your free medium coffee with any fuel purchase.</p>
+</div>
+</div>
+<!-- Fuel Banner -->
+<div class="min-w-[280px] w-[85%] snap-center rounded-2xl overflow-hidden relative shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white border border-outline-variant/30 flex-shrink-0">
+<div class="h-32 w-full relative bg-surface-container">
+<div class="w-full h-full bg-gradient-to-br from-primary to-primary-container flex items-center justify-center overflow-hidden relative">
+<div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-xl transform translate-x-1/2 -translate-y-1/2"></div>
+<span class="material-symbols-outlined text-white text-6xl opacity-20 absolute -left-4 -bottom-4">local_gas_station</span>
+</div>
+<div class="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
+<div class="absolute bottom-3 left-3 bg-secondary-container text-on-secondary-container px-2 py-1 rounded font-label-caps text-label-caps">-4c / LITER</div>
+</div>
+<div class="p-element-inner-padding bg-white">
+<h4 class="font-headline-md text-headline-md text-on-surface">Member Fuel Discount</h4>
+<p class="font-label-sm text-label-sm text-on-surface-variant mt-1">Activate now to save on your next fill-up.</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Hot Deals -->
+<section class="mt-2">
+<div class="flex justify-between items-end mb-3">
+<h3 class="font-headline-md text-headline-md text-on-surface">Hot Deals</h3>
+<button class="font-label-sm text-label-sm text-primary font-semibold">View All</button>
+</div>
+<div class="flex overflow-x-auto gap-4 hide-scrollbar pb-2 -mx-container-margin px-container-margin">
+<!-- Deal 1 -->
+<div class="min-w-[140px] bg-white rounded-xl p-element-inner-padding shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-outline-variant/20 flex flex-col items-center flex-shrink-0">
+<div class="w-20 h-20 bg-surface-container-low rounded-lg mb-3 flex items-center justify-center relative">
+<span class="absolute -top-2 -right-2 bg-error text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">-20%</span>
+<span class="material-symbols-outlined text-outline text-3xl">bolt</span>
+</div>
+<p class="font-label-sm text-label-sm text-on-surface text-center line-clamp-2 h-8">Energy Drink 500ml</p>
+<div class="mt-2 flex items-center gap-2">
+<span class="font-headline-md text-headline-md text-primary">$3.50</span>
+<span class="text-[10px] text-outline line-through">$4.40</span>
+</div>
+</div>
+<!-- Deal 2 -->
+<div class="min-w-[140px] bg-white rounded-xl p-element-inner-padding shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-outline-variant/20 flex flex-col items-center flex-shrink-0">
+<div class="w-20 h-20 bg-surface-container-low rounded-lg mb-3 flex items-center justify-center relative">
+<span class="absolute -top-2 -right-2 bg-error text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">-15%</span>
+<span class="material-symbols-outlined text-outline text-3xl">cookie</span>
+</div>
+<p class="font-label-sm text-label-sm text-on-surface text-center line-clamp-2 h-8">Protein Bar Crunch</p>
+<div class="mt-2 flex items-center gap-2">
+<span class="font-headline-md text-headline-md text-primary">$2.50</span>
+<span class="text-[10px] text-outline line-through">$3.00</span>
+</div>
+</div>
+<!-- Deal 3 -->
+<div class="min-w-[140px] bg-white rounded-xl p-element-inner-padding shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-outline-variant/20 flex flex-col items-center flex-shrink-0">
+<div class="w-20 h-20 bg-surface-container-low rounded-lg mb-3 flex items-center justify-center">
+<span class="material-symbols-outlined text-outline text-3xl">water_bottle</span>
+</div>
+<p class="font-label-sm text-label-sm text-on-surface text-center line-clamp-2 h-8">Spring Water 1L</p>
+<div class="mt-2 flex items-center gap-2">
+<span class="font-headline-md text-headline-md text-primary">$2.00</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Nearby Stations -->
+<section class="mt-2 mb-10">
+<h3 class="font-headline-md text-headline-md text-on-surface mb-3">Nearest Station</h3>
+<div class="bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-outline-variant/30 overflow-hidden">
+<div class="p-element-inner-padding flex justify-between items-center border-b border-surface-variant">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-primary-container/10 rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined text-primary">location_on</span>
+</div>
+<div>
+<h4 class="font-headline-md text-[16px] font-bold text-on-surface">Downtown Metro</h4>
+<p class="font-label-sm text-label-sm text-on-surface-variant">1.2 km away • Open 24/7</p>
+</div>
+</div>
+<button class="w-8 h-8 rounded-full border border-outline-variant flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[18px]">directions</span>
+</button>
+</div>
+<div class="p-element-inner-padding bg-surface-container-low flex justify-around">
+<div class="text-center">
+<p class="font-label-caps text-[10px] text-outline mb-1">ULP 91</p>
+<p class="font-headline-md text-[18px] text-on-surface font-bold">182.9</p>
+</div>
+<div class="w-px bg-outline-variant/50"></div>
+<div class="text-center">
+<p class="font-label-caps text-[10px] text-outline mb-1">PREMIUM 95</p>
+<p class="font-headline-md text-[18px] text-on-surface font-bold">196.9</p>
+</div>
+<div class="w-px bg-outline-variant/50"></div>
+<div class="text-center">
+<p class="font-label-caps text-[10px] text-outline mb-1">DIESEL</p>
+<p class="font-headline-md text-[18px] text-on-surface font-bold">194.9</p>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Floating Action Button (Scan) -->
+<div class="fixed bottom-24 right-container-margin z-50">
+<button class="w-14 h-14 bg-gradient-to-br from-primary-container to-secondary-container rounded-full shadow-lg flex items-center justify-center text-white hover:opacity-90 active:scale-95 transition-all">
+<span class="material-symbols-outlined text-3xl">qr_code_scanner</span>
+</button>
+</div>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 w-full z-40 bg-white/60 dark:bg-surface-container/60 backdrop-blur-xl shadow-[0_-8px_30px_rgb(0,0,0,0.04)] h-20 pb-safe px-2 flex justify-around items-center transition-all duration-300 ease-in-out md:hidden border-t-0">
+<!-- Active: Home -->
+<button class="flex flex-col items-center justify-center text-primary dark:text-secondary-container font-bold hover:bg-primary/5 dark:hover:bg-primary-container/10 p-2 rounded-lg w-16 transition-colors">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">home</span>
+<span class="font-label-sm text-[10px] mt-1">Home</span>
+</button>
+<!-- Inactive: Offers -->
+<button class="flex flex-col items-center justify-center text-outline dark:text-on-surface-variant hover:bg-primary/5 dark:hover:bg-primary-container/10 p-2 rounded-lg w-16 transition-colors">
+<span class="material-symbols-outlined">local_offer</span>
+<span class="font-label-sm text-[10px] mt-1">Offers</span>
+</button>
+<!-- Spacer for FAB alignment -->
+<div class="w-16"></div>
+<!-- Inactive: Rewards -->
+<button class="flex flex-col items-center justify-center text-outline dark:text-on-surface-variant hover:bg-primary/5 dark:hover:bg-primary-container/10 p-2 rounded-lg w-16 transition-colors">
+<span class="material-symbols-outlined">military_tech</span>
+<span class="font-label-sm text-[10px] mt-1">Rewards</span>
+</button>
+<!-- Inactive: Profile -->
+<button class="flex flex-col items-center justify-center text-outline dark:text-on-surface-variant hover:bg-primary/5 dark:hover:bg-primary-container/10 p-2 rounded-lg w-16 transition-colors">
+<span class="material-symbols-outlined">person</span>
+<span class="font-label-sm text-[10px] mt-1">Profile</span>
+</button>
+</nav>
+<script>
+        // Simple scroll effect for TopAppBar
+        window.addEventListener('scroll', () => {
+            const header = document.querySelector('header');
+            if (window.scrollY > 10) {
+                header.classList.add('shadow-md');
+                header.classList.replace('bg-surface/80', 'bg-surface/95');
+            } else {
+                header.classList.remove('shadow-md');
+                header.classList.replace('bg-surface/95', 'bg-surface/80');
+            }
+        });
+    </script>
+</body></html>

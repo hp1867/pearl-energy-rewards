@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Pearl Energy - Store Locator</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "error": "#ba1a1a",
+                        "outline": "#727784",
+                        "surface-variant": "#e2e2e5",
+                        "secondary-container": "#4ba1fd",
+                        "on-primary-fixed-variant": "#004493",
+                        "primary": "#00408b",
+                        "on-secondary-container": "#003663",
+                        "error-container": "#ffdad6",
+                        "secondary": "#0060a9",
+                        "surface-container-high": "#e8e8ea",
+                        "tertiary-fixed": "#e0e3e6",
+                        "on-secondary-fixed": "#001c38",
+                        "on-secondary-fixed-variant": "#004881",
+                        "on-tertiary-fixed-variant": "#44474a",
+                        "primary-container": "#0057b8",
+                        "surface-dim": "#dadadc",
+                        "on-error-container": "#93000a",
+                        "surface-container-highest": "#e2e2e5",
+                        "on-tertiary-fixed": "#191c1e",
+                        "tertiary-fixed-dim": "#c4c7ca",
+                        "surface-container": "#eeeef0",
+                        "background": "#f9f9fc",
+                        "secondary-fixed-dim": "#a2c9ff",
+                        "on-primary-container": "#bfd2ff",
+                        "on-primary-fixed": "#001a41",
+                        "surface-tint": "#0d5bbc",
+                        "primary-fixed-dim": "#adc7ff",
+                        "surface-container-low": "#f3f3f6",
+                        "on-primary": "#ffffff",
+                        "secondary-fixed": "#d3e4ff",
+                        "on-background": "#1a1c1e",
+                        "on-surface": "#1a1c1e",
+                        "on-error": "#ffffff",
+                        "inverse-primary": "#adc7ff",
+                        "surface": "#f9f9fc",
+                        "tertiary-container": "#585b5d",
+                        "on-tertiary": "#ffffff",
+                        "on-tertiary-container": "#d0d3d5",
+                        "surface-bright": "#f9f9fc",
+                        "inverse-surface": "#2f3133",
+                        "surface-container-lowest": "#ffffff",
+                        "on-surface-variant": "#424752",
+                        "primary-fixed": "#d8e2ff",
+                        "on-secondary": "#ffffff",
+                        "outline-variant": "#c2c6d4",
+                        "inverse-on-surface": "#f0f0f3",
+                        "tertiary": "#404346"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px",
+                        "2xl": "1rem",
+                        "3xl": "1.5rem"
+                    },
+                    "spacing": {
+                        "container-margin": "20px",
+                        "stack-gap": "16px",
+                        "element-inner-padding": "12px",
+                        "section-padding": "24px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Hanken Grotesk"],
+                        "label-caps": ["Hanken Grotesk"],
+                        "headline-lg": ["Hanken Grotesk"],
+                        "body-lg": ["Hanken Grotesk"],
+                        "headline-lg-mobile": ["Hanken Grotesk"],
+                        "headline-md": ["Hanken Grotesk"],
+                        "label-sm": ["Hanken Grotesk"],
+                        "display-pts": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                        "body-lg": ["18px", { "lineHeight": "26px", "fontWeight": "400" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "700" }],
+                        "headline-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
+                        "display-pts": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>body {
+    font-family: "Hanken Grotesk", sans-serif
+    }
+.glass-panel {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05)
+    }
+.map-bg {
+    background-image: url(https://lh3.googleusercontent.com/aida-public/AB6AXuB9qLkhBa7ww60JhNYyAujN7pCXFrVGB6pNd95UaxvzVDCPayxuJUBQcuxmEW7VmcMTXic65Js2Up-g5jKJ8rTwfjxwmJ-5dBtCy0Z9npmRtYPCiyTLM5EHSem0oYCUSYdT3O1xKXPZdi0Vy7zAXkuoeIkVdUAU6OW-Fg6SyL-4dPZsyk5usK3x6ewGuKkihKPEMlVgpFVXDAUtagEoVTv25oYFZ-x692Fx6FCS3d-7JnBQjK3rl1xaSNCktg7AYcpVAn63SN5E7ElQ);
+    background-size: cover;
+    background-position: center
+    }
+/* Custom scrollbar for horizontal filters */
+.hide-scrollbar::-webkit-scrollbar {
+    display: none
+    }
+.hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none
+    }</style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background h-screen w-screen overflow-hidden flex flex-col relative">
+<!-- Simulated Map Background -->
+<div class="absolute inset-0 map-bg z-0" data-alt="A modern, high-contrast digital map interface showing the city streets of Sydney, Australia. The map uses a light mode aesthetic with soft whites, pale grays, and subtle blue accents for water bodies. The layout is clean and corporate, fitting a premium energy brand's store locator. The lighting is bright and even, giving a sense of clarity and efficiency." data-location="Sydney, Australia" style=""></div>
+<!-- Map Pins (Simulated) -->
+<div class="absolute top-1/3 left-1/4 z-10 transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
+<div class="bg-primary text-on-primary rounded-full p-2 shadow-lg mb-1 relative">
+<span class="material-symbols-outlined text-2xl" style="font-variation-settings: 'FILL' 1;">local_gas_station</span>
+<div class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] border-t-primary"></div>
+</div>
+<span class="bg-white/90 backdrop-blur-sm px-2 py-1 rounded text-label-caps text-primary shadow-sm mt-1 whitespace-nowrap">Sydney Central</span>
+</div>
+<div class="absolute top-1/2 right-1/4 z-10 transform translate-x-1/4 -translate-y-1/4 flex flex-col items-center opacity-70">
+<div class="bg-surface text-primary border-2 border-primary rounded-full p-2 shadow-md mb-1 relative">
+<span class="material-symbols-outlined text-xl">local_gas_station</span>
+<div class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[6px] border-t-primary"></div>
+</div>
+<span class="bg-white/80 backdrop-blur-sm px-2 py-1 rounded text-label-caps text-on-surface-variant shadow-sm mt-1 whitespace-nowrap">North Shore</span>
+</div>
+<!-- Top Navigation & Search Area -->
+<header class="z-20 w-full pt-safe px-container-margin pb-4 flex flex-col gap-4 bg-gradient-to-b from-white/90 via-white/70 to-transparent">
+<!-- TopAppBar Area -->
+<div class="flex justify-between items-center h-16 w-full">
+<button class="w-10 h-10 flex items-center justify-center rounded-full bg-surface shadow-sm text-primary hover:opacity-80 transition-opacity">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<h1 class="font-headline-md text-headline-md font-bold text-primary">Store Locator</h1>
+<button class="w-10 h-10 flex items-center justify-center rounded-full bg-surface shadow-sm text-primary hover:opacity-80 transition-opacity">
+<span class="material-symbols-outlined">tune</span>
+</button>
+</div>
+<!-- Search Input -->
+<div class="relative w-full">
+<div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-outline">search</span>
+</div>
+<input class="w-full bg-surface text-on-surface font-body-md text-body-md rounded-xl pl-12 pr-4 py-3 border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary-container/20 transition-all shadow-sm outline-none placeholder:text-outline-variant" placeholder="Search for stations, suburbs or postcodes" type="text"/>
+<div class="absolute inset-y-0 right-0 pr-2 flex items-center">
+<button class="w-8 h-8 flex items-center justify-center rounded-full text-primary hover:bg-primary/5 transition-colors">
+<span class="material-symbols-outlined">my_location</span>
+</button>
+</div>
+</div>
+<!-- Horizontal Filters -->
+<div class="flex gap-2 overflow-x-auto hide-scrollbar pb-2 pt-1 -mx-container-margin px-container-margin">
+<button class="whitespace-nowrap bg-primary text-on-primary px-4 py-2 rounded-full font-label-sm text-label-sm flex items-center gap-1 shadow-sm">
+<span class="material-symbols-outlined text-[18px]">local_gas_station</span>
+                All Fuels
+            </button>
+<button class="whitespace-nowrap bg-surface text-on-surface border border-outline-variant px-4 py-2 rounded-full font-label-sm text-label-sm flex items-center gap-1 shadow-sm hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined text-[18px]">local_car_wash</span>
+                Car Wash
+            </button>
+<button class="whitespace-nowrap bg-surface text-on-surface border border-outline-variant px-4 py-2 rounded-full font-label-sm text-label-sm flex items-center gap-1 shadow-sm hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined text-[18px]">ev_station</span>
+                EV Charging
+            </button>
+<button class="whitespace-nowrap bg-surface text-on-surface border border-outline-variant px-4 py-2 rounded-full font-label-sm text-label-sm flex items-center gap-1 shadow-sm hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined text-[18px]">local_cafe</span>
+                Coffee
+            </button>
+<button class="whitespace-nowrap bg-surface text-on-surface border border-outline-variant px-4 py-2 rounded-full font-label-sm text-label-sm flex items-center gap-1 shadow-sm hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined text-[18px]">atm</span>
+                ATM
+            </button>
+</div>
+</header>
+<!-- Bottom Sheet Overlay (Station Details) -->
+<div class="z-20 mt-auto w-full pb-[100px] px-container-margin">
+<div class="glass-panel rounded-3xl p-6 relative flex flex-col gap-4 transform transition-transform duration-300 translate-y-0">
+<!-- Drag Handle -->
+<div class="absolute top-2 left-1/2 transform -translate-x-1/2 w-12 h-1.5 bg-outline-variant/50 rounded-full"></div>
+<!-- Header -->
+<div class="flex justify-between items-start mt-2">
+<div class="flex flex-col">
+<h2 class="font-headline-md text-headline-md text-on-surface mb-1">Pearl Energy Sydney Central</h2>
+<div class="flex items-center gap-2 text-on-surface-variant font-label-sm text-label-sm">
+<span class="flex items-center text-primary font-medium"><span class="material-symbols-outlined text-[16px] mr-1">near_me</span>1.2 km</span>
+<span>•</span>
+<span class="text-secondary">Open 24/7</span>
+</div>
+</div>
+<button class="w-10 h-10 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center shadow-md hover:bg-primary transition-colors flex-shrink-0">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">directions</span>
+</button>
+</div>
+<!-- Pricing Grid -->
+<div class="grid grid-cols-2 gap-3 mt-2">
+<div class="bg-surface-container-low rounded-xl p-3 border border-outline-variant/30 flex justify-between items-center">
+<span class="font-label-caps text-label-caps text-on-surface-variant">ULP 91</span>
+<span class="font-body-md text-body-md font-bold text-on-surface">182.9</span>
+</div>
+<div class="bg-surface-container-low rounded-xl p-3 border border-outline-variant/30 flex justify-between items-center">
+<span class="font-label-caps text-label-caps text-on-surface-variant">E10</span>
+<span class="font-body-md text-body-md font-bold text-on-surface">180.9</span>
+</div>
+<div class="bg-surface-container-low rounded-xl p-3 border border-outline-variant/30 flex justify-between items-center">
+<span class="font-label-caps text-label-caps text-primary">PULP 98</span>
+<span class="font-body-md text-body-md font-bold text-primary">202.9</span>
+</div>
+<div class="bg-surface-container-low rounded-xl p-3 border border-outline-variant/30 flex justify-between items-center">
+<span class="font-label-caps text-label-caps text-on-surface-variant">Diesel</span>
+<span class="font-body-md text-body-md font-bold text-on-surface">199.9</span>
+</div>
+</div>
+<!-- Amenities -->
+<div class="pt-3 border-t border-outline-variant/20 flex gap-4">
+<div class="flex flex-col items-center gap-1">
+<div class="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[20px]">local_car_wash</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant text-[10px]">Car Wash</span>
+</div>
+<div class="flex flex-col items-center gap-1">
+<div class="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[20px]">local_cafe</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant text-[10px]">Coffee</span>
+</div>
+<div class="flex flex-col items-center gap-1">
+<div class="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[20px]">atm</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant text-[10px]">ATM</span>
+</div>
+<div class="flex flex-col items-center gap-1 ml-auto">
+<div class="w-10 h-10 rounded-full bg-surface flex items-center justify-center text-primary border border-outline-variant shadow-sm cursor-pointer hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined text-[20px]">info</span>
+</div>
+<span class="font-label-sm text-label-sm text-primary text-[10px]">More</span>
+</div>
+</div>
+</div>
+</div>
+<!-- BottomNavBar -->
+<nav class="md:hidden bg-white/60 dark:bg-surface-container/60 font-headline-lg text-headline-lg text-primary fixed bottom-0 w-full z-50 rounded-t-xl backdrop-blur-xl shadow-[0_-8px_30px_rgb(0,0,0,0.04)] transition-all duration-300 ease-in-out flex justify-around items-center h-20 pb-safe px-2">
+<a class="hover:bg-primary/5 dark:hover:bg-primary-container/10 flex flex-col items-center justify-center text-outline dark:text-on-surface-variant p-2 rounded-lg flex-1" href="#">
+<span class="material-symbols-outlined mb-1">home</span>
+<span class="font-label-sm text-label-sm">Home</span>
+</a>
+<a class="hover:bg-primary/5 dark:hover:bg-primary-container/10 flex flex-col items-center justify-center text-outline dark:text-on-surface-variant p-2 rounded-lg flex-1" href="#">
+<span class="material-symbols-outlined mb-1">local_offer</span>
+<span class="font-label-sm text-label-sm">Offers</span>
+</a>
+<a class="hover:bg-primary/5 dark:hover:bg-primary-container/10 flex flex-col items-center justify-center text-outline dark:text-on-surface-variant p-2 rounded-lg flex-1" href="#">
+<span class="material-symbols-outlined mb-1">qr_code_scanner</span>
+<span class="font-label-sm text-label-sm">Scan</span>
+</a>
+<a class="hover:bg-primary/5 dark:hover:bg-primary-container/10 flex flex-col items-center justify-center text-outline dark:text-on-surface-variant p-2 rounded-lg flex-1" href="#">
+<span class="material-symbols-outlined mb-1">military_tech</span>
+<span class="font-label-sm text-label-sm">Rewards</span>
+</a>
+<a class="hover:bg-primary/5 dark:hover:bg-primary-container/10 flex flex-col items-center justify-center text-primary dark:text-secondary-container font-bold p-2 rounded-lg flex-1" href="#">
+<span class="material-symbols-outlined mb-1" style="font-variation-settings: 'FILL' 1;">location_on</span>
+<span class="font-label-sm text-label-sm">Locator</span>
+</a>
+</nav>
+<!-- Navigation for Web (Hidden on Mobile) -->
+<nav class="hidden md:flex fixed top-0 w-full z-50 backdrop-blur-md shadow-sm bg-surface/80 dark:bg-surface-dim/80 flex justify-between items-center px-container-margin h-16 w-full">
+<div class="font-headline-md text-headline-md font-bold text-primary dark:text-primary-fixed-dim">
+            Pearl Energy
+        </div>
+<div class="flex gap-6">
+<a class="font-body-md text-body-md text-on-surface-variant dark:text-outline hover:opacity-80 transition-opacity" href="#">Home</a>
+<a class="font-body-md text-body-md text-on-surface-variant dark:text-outline hover:opacity-80 transition-opacity" href="#">Offers</a>
+<a class="font-body-md text-body-md text-primary dark:text-secondary-fixed hover:opacity-80 transition-opacity font-bold" href="#">Locator</a>
+<a class="font-body-md text-body-md text-on-surface-variant dark:text-outline hover:opacity-80 transition-opacity" href="#">Rewards</a>
+<a class="font-body-md text-body-md text-on-surface-variant dark:text-outline hover:opacity-80 transition-opacity" href="#">Profile</a>
+</div>
+<div>
+<span class="material-symbols-outlined text-primary dark:text-primary-fixed-dim scale-95 active:duration-100">notifications</span>
+</div>
+</nav>
+</body></html>

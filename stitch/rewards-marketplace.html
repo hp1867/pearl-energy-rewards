@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Pearl Energy - Rewards</title>
+<!-- Google Fonts: Hanken Grotesk & Material Symbols -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "error": "#ba1a1a",
+                      "outline": "#727784",
+                      "surface-variant": "#e2e2e5",
+                      "secondary-container": "#4ba1fd",
+                      "on-primary-fixed-variant": "#004493",
+                      "primary": "#00408b",
+                      "on-secondary-container": "#003663",
+                      "error-container": "#ffdad6",
+                      "secondary": "#0060a9",
+                      "surface-container-high": "#e8e8ea",
+                      "tertiary-fixed": "#e0e3e6",
+                      "on-secondary-fixed": "#001c38",
+                      "on-secondary-fixed-variant": "#004881",
+                      "on-tertiary-fixed-variant": "#44474a",
+                      "primary-container": "#0057b8",
+                      "surface-dim": "#dadadc",
+                      "on-error-container": "#93000a",
+                      "surface-container-highest": "#e2e2e5",
+                      "on-tertiary-fixed": "#191c1e",
+                      "tertiary-fixed-dim": "#c4c7ca",
+                      "surface-container": "#eeeef0",
+                      "background": "#f9f9fc",
+                      "secondary-fixed-dim": "#a2c9ff",
+                      "on-primary-container": "#bfd2ff",
+                      "on-primary-fixed": "#001a41",
+                      "surface-tint": "#0d5bbc",
+                      "primary-fixed-dim": "#adc7ff",
+                      "surface-container-low": "#f3f3f6",
+                      "on-primary": "#ffffff",
+                      "secondary-fixed": "#d3e4ff",
+                      "on-background": "#1a1c1e",
+                      "on-surface": "#1a1c1e",
+                      "on-error": "#ffffff",
+                      "inverse-primary": "#adc7ff",
+                      "surface": "#f9f9fc",
+                      "tertiary-container": "#585b5d",
+                      "on-tertiary": "#ffffff",
+                      "on-tertiary-container": "#d0d3d5",
+                      "surface-bright": "#f9f9fc",
+                      "inverse-surface": "#2f3133",
+                      "surface-container-lowest": "#ffffff",
+                      "on-surface-variant": "#424752",
+                      "primary-fixed": "#d8e2ff",
+                      "on-secondary": "#ffffff",
+                      "outline-variant": "#c2c6d4",
+                      "inverse-on-surface": "#f0f0f3",
+                      "tertiary": "#404346"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "2xl": "1rem",
+                      "3xl": "1.5rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "container-margin": "20px",
+                      "stack-gap": "16px",
+                      "element-inner-padding": "12px",
+                      "section-padding": "24px",
+                      "safe": "24px"
+              },
+              "fontFamily": {
+                      "body-md": ["Hanken Grotesk"],
+                      "label-caps": ["Hanken Grotesk"],
+                      "headline-lg": ["Hanken Grotesk"],
+                      "body-lg": ["Hanken Grotesk"],
+                      "headline-lg-mobile": ["Hanken Grotesk"],
+                      "headline-md": ["Hanken Grotesk"],
+                      "label-sm": ["Hanken Grotesk"],
+                      "display-pts": ["Hanken Grotesk"]
+              },
+              "fontSize": {
+                      "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                      "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700" }],
+                      "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                      "body-lg": ["18px", { "lineHeight": "26px", "fontWeight": "400" }],
+                      "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "700" }],
+                      "headline-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                      "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
+                      "display-pts": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }]
+              }
+            }
+          }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .icon-filled {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        /* Hide scrollbar for clean horizontal scrolling */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        /* Glassmorphic Utilities */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .card-shadow {
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body-md min-h-screen pb-[100px] antialiased">
+<!-- TopAppBar -->
+<header class="bg-surface/80 dark:bg-surface-dim/80 backdrop-blur-md border-b border-white/20 shadow-sm fixed top-0 w-full z-50 flex justify-between items-center px-container-margin h-16 transition-opacity hover:opacity-80">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full overflow-hidden bg-surface-container border border-outline-variant flex items-center justify-center shrink-0">
+<img alt="Profile" class="w-full h-full object-cover" data-alt="A brightly lit, professional headshot of a young professional in a modern office environment, signifying the user profile picture. The lighting is soft and flattering, typical of a modern corporate aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCnUE0TsfBLnyujrlgmxUU31PJd9EMWE2sLgFpxZvWBbkKZLU12ERx_TE6i0RglaWluLM0Fl9BCE6UZDeTGlhF1WrPtBo1g8llFe5YVv1C0S0I9uYUH9E_wOxr574xAmfH5ZYqqb6rWOVT96jijJBtbeptDkU1uupkIQh1L1a2wM1zaa93vTbD_pFbF-DoatWnOBAB3hLsWHcPGggdQLt6TKeK2SgWC_Yo2aUieIhVXccnlBZ2WJNUrYHWgFgBNL7oWUjL3jmvQtYL9"/>
+</div>
+<span class="font-headline-md text-headline-md font-bold text-primary dark:text-primary-fixed-dim">Pearl Energy</span>
+</div>
+<button class="w-10 h-10 rounded-full flex items-center justify-center text-primary dark:text-primary-fixed-dim scale-95 active:duration-100 bg-transparent hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+</header>
+<!-- Main Content Canvas -->
+<main class="pt-24 px-container-margin flex flex-col gap-section-padding max-w-3xl mx-auto">
+<!-- Page Header -->
+<section>
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">Your Rewards</h1>
+</section>
+<!-- Points & Tier Tracker Card (Glassmorphic & Gradient) -->
+<section class="rounded-3xl bg-gradient-to-br from-primary-container to-secondary p-6 text-on-primary shadow-[0_12px_40px_rgba(0,87,184,0.15)] relative overflow-hidden">
+<!-- Decorative light reflection -->
+<div class="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-white/10 to-transparent pointer-events-none rounded-3xl"></div>
+<div class="relative z-10 flex flex-col gap-6">
+<div class="flex justify-between items-start">
+<div>
+<p class="font-label-caps text-label-caps text-on-primary/80 uppercase tracking-wider mb-1">Available Balance</p>
+<div class="flex items-baseline gap-1">
+<span class="font-display-pts text-display-pts">2,450</span>
+<span class="font-body-lg text-body-lg text-on-primary/90">pts</span>
+</div>
+</div>
+<div class="bg-white/20 backdrop-blur-md border border-white/30 rounded-full px-3 py-1 flex items-center gap-1 shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)]">
+<span class="material-symbols-outlined text-[16px] icon-filled text-white">star</span>
+<span class="font-label-sm text-label-sm font-semibold text-white">Gold Tier</span>
+</div>
+</div>
+<!-- Progress Tracker -->
+<div class="flex flex-col gap-2 mt-2">
+<div class="flex justify-between items-center text-on-primary/90">
+<span class="font-label-sm text-label-sm">Distance to Platinum</span>
+<span class="font-label-sm text-label-sm font-bold">550 pts</span>
+</div>
+<div class="h-2 w-full bg-surface/20 rounded-full overflow-hidden shadow-inner">
+<div class="h-full bg-white rounded-full w-[78%] transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(255,255,255,0.5)]"></div>
+</div>
+</div>
+</div>
+</section>
+<!-- Categories (Horizontal Scroll) -->
+<section class="-mx-container-margin px-container-margin overflow-x-auto no-scrollbar pb-2">
+<div class="flex gap-3 w-max">
+<button class="bg-primary-container text-on-primary-container rounded-full px-5 py-2.5 font-label-sm text-label-sm font-semibold transition-all shadow-sm">All</button>
+<button class="bg-surface-container-lowest text-on-surface-variant border border-surface-variant rounded-full px-5 py-2.5 font-label-sm text-label-sm transition-all hover:bg-surface-container-low card-shadow">Fuel</button>
+<button class="bg-surface-container-lowest text-on-surface-variant border border-surface-variant rounded-full px-5 py-2.5 font-label-sm text-label-sm transition-all hover:bg-surface-container-low card-shadow">Coffee</button>
+<button class="bg-surface-container-lowest text-on-surface-variant border border-surface-variant rounded-full px-5 py-2.5 font-label-sm text-label-sm transition-all hover:bg-surface-container-low card-shadow">Food</button>
+<button class="bg-surface-container-lowest text-on-surface-variant border border-surface-variant rounded-full px-5 py-2.5 font-label-sm text-label-sm transition-all hover:bg-surface-container-low card-shadow">Partners</button>
+</div>
+</section>
+<!-- Reward Cards Grid -->
+<section class="grid grid-cols-1 gap-stack-gap md:grid-cols-2">
+<!-- Card 1 -->
+<div class="bg-surface-container-lowest rounded-2xl overflow-hidden card-shadow flex flex-col border border-surface-variant/50">
+<div class="h-32 bg-surface-container-high relative">
+<img alt="Coffee" class="w-full h-full object-cover" data-alt="A highly stylized, bright image of a freshly brewed cup of black coffee in a minimalist white ceramic mug, sitting on a clean, modern glass table. Soft, natural morning light spills across the scene, creating a fresh, premium, and awakening mood consistent with an energy brand's light-mode aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCnCYepc9AQJJ1BHFpueXSrqJBNM-pN_4AD80rMTq1RXQG_ojpqycuwF3lAN6eIR75SqXtzhijXBiJied6M6VrDh-jbUtbDic7vv4Q5utMa7RxhxnAdQ3oQubOy9MHsTWNl6gCrPPKoEgJzMBlgMd5zI0ioSB4eLLof6Nz05hnbzCnlUlkQKYjLuJIZjuW3FGMKIgutqJ8kqOZyDorPyw-Dt7ZnwHPEjWDTSOEU54lIHxld4cMGOibvmloI4wLvHsYT-5iW9d4n4dqY"/>
+<div class="absolute top-3 right-3 bg-surface/90 backdrop-blur-sm rounded-full px-2.5 py-1 flex items-center gap-1 shadow-sm">
+<span class="material-symbols-outlined text-[14px] text-primary">local_cafe</span>
+</div>
+</div>
+<div class="p-element-inner-padding flex flex-col gap-3 flex-1 justify-between">
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface">Free Coffee</h3>
+<p class="font-body-md text-body-md text-primary font-semibold mt-1">500 pts</p>
+</div>
+<button class="w-full bg-gradient-to-r from-primary-container to-secondary text-on-primary rounded-xl py-3 font-label-sm text-label-sm font-bold shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)] active:scale-[0.98] transition-transform flex items-center justify-center gap-2">
+                        Redeem Now
+                        <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</button>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="bg-surface-container-lowest rounded-2xl overflow-hidden card-shadow flex flex-col border border-surface-variant/50">
+<div class="h-32 bg-surface-container-high relative">
+<img alt="Fuel Voucher" class="w-full h-full object-cover" data-alt="A close-up, abstract shot of a sleek modern fuel pump nozzle reflecting bright sunlight. The metallic surface gleams against a blurred, light-colored modern service station background, conveying efficiency, clean energy, and high velocity in a premium, light-mode visual style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBx053Fs9ztpjq1hZ5N78BFxM1FpZWBHT8osBO6FVSrUmUwPZQND1xT_ez_BDgmDQdfJ4JEm1RVGmWOeBE1EZtQku9JyBQM14244g69jGog5eYZtpy5iCr6Akls6VzRQ7a6Rq5O4ijBRqH-xqo3Bq0uN2UXWUtiDLMoBpaTdqueKJDGhMOI5HA44bKtRwhNTssGuRSQ6sHPZu4aW__uxZf2h6k5SW9YyrsMtixxgvagRikOKy12ROFj8bxIXnv2HceqF3eS_oalRs_I"/>
+<div class="absolute top-3 right-3 bg-surface/90 backdrop-blur-sm rounded-full px-2.5 py-1 flex items-center gap-1 shadow-sm">
+<span class="material-symbols-outlined text-[14px] text-primary">local_gas_station</span>
+</div>
+</div>
+<div class="p-element-inner-padding flex flex-col gap-3 flex-1 justify-between">
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface">$5 Fuel Voucher</h3>
+<p class="font-body-md text-body-md text-primary font-semibold mt-1">1000 pts</p>
+</div>
+<button class="w-full bg-gradient-to-r from-primary-container to-secondary text-on-primary rounded-xl py-3 font-label-sm text-label-sm font-bold shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)] active:scale-[0.98] transition-transform flex items-center justify-center gap-2">
+                        Redeem Now
+                        <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</button>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="bg-surface-container-lowest rounded-2xl overflow-hidden card-shadow flex flex-col border border-surface-variant/50">
+<div class="h-32 bg-surface-container-high relative">
+<img alt="Premium Snack" class="w-full h-full object-cover" data-alt="An elegantly arranged artisanal snack bar featuring nuts, seeds, and dried fruit, resting on a smooth white marble surface. The lighting is crisp and even, highlighting the textures of the premium ingredients, creating an appetizing and healthy mood that fits seamlessly into a modern corporate lifestyle app." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDBZ8SuBRKNJk73DkDn5KmE2keiFUibsotkWpeS8XtJ1GtB-p7Wal2etrnG9td6MUSmMMCSyIISFeAaa0DL05ZfeMKmdsObmJm5gA0QsIIUXBp1xCXnNs54CGY4Q22FM7P-pBhd3sBtitXyX1D4eyAsLsit6WViIPA3zllp-ROdRz47xEMkgr99-nEn9z_DLLNaZnYRSU1RCJ_X_KxHXwf0P4BBGZ2KhuCAmcDiPBIquxWLsvPyItvITY3OLQbGo-yiMMYPTeAcMxTr"/>
+<div class="absolute top-3 right-3 bg-surface/90 backdrop-blur-sm rounded-full px-2.5 py-1 flex items-center gap-1 shadow-sm">
+<span class="material-symbols-outlined text-[14px] text-primary">bakery_dining</span>
+</div>
+</div>
+<div class="p-element-inner-padding flex flex-col gap-3 flex-1 justify-between">
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface">Premium Snack</h3>
+<p class="font-body-md text-body-md text-primary font-semibold mt-1">750 pts</p>
+</div>
+<button class="w-full bg-gradient-to-r from-primary-container to-secondary text-on-primary rounded-xl py-3 font-label-sm text-label-sm font-bold shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)] active:scale-[0.98] transition-transform flex items-center justify-center gap-2">
+                        Redeem Now
+                        <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</button>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="bg-white/60 dark:bg-surface-container/60 backdrop-blur-xl border-t border-white/20 shadow-[0_-8px_30px_rgb(0,0,0,0.04)] fixed bottom-0 w-full z-50 rounded-t-xl flex justify-around items-center h-20 pb-[env(safe-area-inset-bottom)] px-2 transition-all duration-300 ease-in-out md:hidden">
+<button class="flex flex-col items-center justify-center text-outline dark:text-on-surface-variant hover:bg-primary/5 dark:hover:bg-primary-container/10 p-2 rounded-lg transition-colors w-16">
+<span class="material-symbols-outlined mb-1">home</span>
+<span class="font-label-sm text-label-sm">Home</span>
+</button>
+<button class="flex flex-col items-center justify-center text-outline dark:text-on-surface-variant hover:bg-primary/5 dark:hover:bg-primary-container/10 p-2 rounded-lg transition-colors w-16">
+<span class="material-symbols-outlined mb-1">local_offer</span>
+<span class="font-label-sm text-label-sm">Offers</span>
+</button>
+<button class="flex flex-col items-center justify-center text-outline dark:text-on-surface-variant hover:bg-primary/5 dark:hover:bg-primary-container/10 p-2 rounded-lg transition-colors w-16">
+<span class="material-symbols-outlined mb-1">qr_code_scanner</span>
+<span class="font-label-sm text-label-sm">Scan</span>
+</button>
+<button class="flex flex-col items-center justify-center text-primary dark:text-secondary-container font-bold hover:bg-primary/5 dark:hover:bg-primary-container/10 p-2 rounded-lg transition-colors w-16 relative">
+<!-- Active indicator glow -->
+<div class="absolute -top-1 w-8 h-1 bg-primary rounded-b-full shadow-[0_2px_8px_rgba(0,64,139,0.5)]"></div>
+<span class="material-symbols-outlined icon-filled mb-1">military_tech</span>
+<span class="font-label-sm text-label-sm">Rewards</span>
+</button>
+<button class="flex flex-col items-center justify-center text-outline dark:text-on-surface-variant hover:bg-primary/5 dark:hover:bg-primary-container/10 p-2 rounded-lg transition-colors w-16">
+<span class="material-symbols-outlined mb-1">person</span>
+<span class="font-label-sm text-label-sm">Profile</span>
+</button>
+</nav>
+</body></html>

@@ -1,0 +1,20 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // A customer can read & write only their own record.
+    match /customers/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+
+      // Staff/admins (custom claim `staff: true`) can read any customer —
+      // this powers the "Customer Lookup" feature.
+      allow read: if request.auth != null && request.auth.token.staff == true;
+    }
+
+    // Live catalogs: anyone signed in can read; only admins can write.
+    // Set the admin claim with the Admin SDK: setCustomUserClaims(uid, { admin: true })
+    match /offers/{id}      { allow read: if request.auth != null; allow write: if request.auth.token.admin == true; }
+    match /rewards/{id}     { allow read: if request.auth != null; allow write: if request.auth.token.admin == true; }
+    match /fuelPrices/{id}  { allow read: if request.auth != null; allow write: if request.auth.token.admin == true; }
+  }
+}
