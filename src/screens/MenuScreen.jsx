@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Search, Plus } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { Header } from './OffersScreen'
 
@@ -36,13 +36,7 @@ export default function MenuScreen() {
       </div>
       <div style={{ fontWeight: 700, fontSize: 13.5, marginTop: 10, lineHeight: 1.25 }}>{m.name}</div>
       <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 3, minHeight: 28 }}>{m.desc}</div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
-        <span style={{ fontWeight: 800, color: 'var(--blue)' }}>{m.price}</span>
-        <button disabled={!m.avail} onClick={() => notify(`Added ${m.name}`)}
-          style={{ width: 30, height: 30, borderRadius: 10, background: m.avail ? 'var(--grad-blue)' : 'var(--muted)', color: '#fff', display: 'grid', placeItems: 'center' }}>
-          <Plus size={18} />
-        </button>
-      </div>
+      <div style={{ fontWeight: 800, color: 'var(--blue)' }}>{m.price}</div>
       {!m.avail && <div style={{ fontSize: 10.5, color: '#c0392b', fontWeight: 700, marginTop: 4 }}>Sold out</div>}
     </motion.div>
   )
