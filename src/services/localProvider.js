@@ -8,9 +8,9 @@ const seedCategories = menuGroups.map((g) => ({ id: g.key, ...g }))
 
 const K = {
   customers: 'pe_customers', session: 'pe_session',
-  offers: 'pe_offers', rewards: 'pe_rewards', fuel: 'pe_fuel', menu: 'pe_menu', categories: 'pe_categories', stations: 'pe_stations', notifs: 'pe_notifs', streakRewards: 'pe_streakRewards',
+  offers: 'pe_offers', rewards: 'pe_rewards', fuel: 'pe_fuel', menu: 'pe_menu', categories: 'pe_categories', stations: 'pe_stations', notifs: 'pe_notifs', streakRewards: 'pe_streakRewards', pendingCoupons: 'pe_pendingCoupons',
 }
-const SEED = { [K.offers]: seedOffers, [K.rewards]: seedRewards, [K.fuel]: seedFuel, [K.menu]: seedMenu, [K.categories]: seedCategories, [K.stations]: seedStations, [K.notifs]: seedNotifs, [K.streakRewards]: seedStreakRewards }
+const SEED = { [K.offers]: seedOffers, [K.rewards]: seedRewards, [K.fuel]: seedFuel, [K.menu]: seedMenu, [K.categories]: seedCategories, [K.stations]: seedStations, [K.notifs]: seedNotifs, [K.streakRewards]: seedStreakRewards, [K.pendingCoupons]: [] }
 
 const read = (k, fallback) => { try { return JSON.parse(localStorage.getItem(k)) ?? fallback } catch { return fallback } }
 const write = (k, v) => localStorage.setItem(k, JSON.stringify(v))
@@ -271,6 +271,40 @@ export function createLocalProvider() {
     subscribeStations(cb) { return subscribeKey(K.stations, cb) },
     subscribeNotifications(cb) { return subscribeKey(K.notifs, cb) },
     subscribeStreakRewards(cb) { return subscribeKey(K.streakRewards, cb) },
+    subscribePendingCoupons(cb) { return subscribeKey(K.pendingCoupons, cb) },
+
+    // ---------- pending coupons ----------
+    async addPendingCoupon(uid, coupon) {
+      const coupons = read(K.pendingCoupons, [])
+      const newCoupon = { ...coupon, uid, createdAt: Date.now() }
+      saveCollection(K.pendingCoupons, [...coupons, newCoupon])
+      return newCoupon
+    },
+    async activatePendingCoupon(uid, couponId) {
+      const coupons = read(K.pendingCoupons, [])
+      const updated = coupons.map(c => 
+        c.id === couponId && c.uid === uid ? { ...c, status: 'active', activatedAt: new Date().toISOString() } : c
+      )
+      saveCollection(K.pendingCoupons, updated)
+      return { ok: true }
+    },
+    async usePendingCoupon(uid, couponId) {
+      const coupons = read(K.pendingCoupons, [])
+      const updated = coupons.map(c => 
+        c.id === couponId && c.uid === uid ? { ...c, status: 'redeemed', usedAt: new Date().toISOString() } : c
+      )
+      saveCollection(K.pendingCoupons, updated)
+      return { ok: true }
+    },
+    async removePendingCoupon(uid, couponId) {
+      const coupons = read(K.pendingCoupons, [])
+      saveCollection(K.pendingCoupons, coupons.filter(c => !(c.id === couponId && c.uid === uid)))
+      return { ok: true }
+    },
+    async getPendingCoupons(uid) {
+      const coupons = read(K.pendingCoupons, [])
+      return coupons.filter(c => c.uid === uid)
+    },
 
     // ---------- admin / write API ----------
     async adminUpsert(name, item) {

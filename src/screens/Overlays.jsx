@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import {
   ChevronLeft, TrendingDown, TrendingUp, Navigation, Search, SlidersHorizontal, Crosshair,
   Smartphone, Wallet, Download, Share2, ScanLine, X, Coffee, Car, Banknote, UtensilsCrossed,
-  Zap, Info, Tag, Star, Fuel, Bell,
+  Zap, Info, Tag, Star, Fuel, Bell, AlertCircle,
 } from 'lucide-react'
 import Barcode from 'react-barcode'
 import { QRCodeCanvas } from 'qrcode.react'
@@ -568,5 +568,100 @@ function StreakRewardCard({ reward, onClaim, burst }) {
         <span>{reward.progress.current} / {reward.progress.target} {reward.progress.unit}</span>
       </div>
     </div>
+  )
+}
+
+/* ---------------- My Coupons (Not Used / Pending) ---------------- */
+export function MyCoupons() {
+  const { pendingCoupons, activateCoupon, useCoupon, removeCoupon, notify, member } = useApp()
+  const [filter, setFilter] = useState('all') // all | not_active | active | redeemed
+
+  const filtered = pendingCoupons.filter(c => filter === 'all' || c.status === filter)
+
+  const statusConfig = {
+    not_active: { label: 'Not Active', color: '#f37021', bg: '#fff4e5', icon: '⏳' },
+    active: { label: 'Active', color: '#1e8e4e', bg: '#e7f7ee', icon: '✅' },
+    redeemed: { label: 'Redeemed', color: 'var(--muted)', bg: 'var(--surface-c)', icon: '🎉' },
+  }
+
+  return (
+    <Shell title="My Coupons">
+      <div style={{ padding: '8px 20px 0' }}>
+        {/* Filter tabs */}
+        <div className="h-scroll" style={{ marginBottom: 16 }}>
+          {['all', 'not_active', 'active', 'redeemed'].map(f => (
+            <button key={f} className={`chip ${filter === f ? 'active' : ''}`} onClick={() => setFilter(f)}>
+              {f === 'all' ? 'All' : statusConfig[f].label}
+            </button>
+          ))}
+        </div>
+
+        {filtered.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 40, color: 'var(--muted)' }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>🎫</div>
+            <p style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>No coupons yet</p>
+            <p style={{ fontSize: 13 }}>Redeem offers from the Offers tab to see them here</p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {filtered.map((coupon) => {
+              const cfg = statusConfig[coupon.status]
+              const isExpired = new Date(coupon.expiry) < new Date()
+              const canActivate = coupon.status === 'not_active' && !isExpired
+              const canUse = coupon.status === 'active'
+
+              return (
+                <motion.div key={coupon.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+                  <div style={{ background: '#fff', borderRadius: 16, overflow: 'hidden', boxShadow: 'var(--shadow-md)', border: '1px solid rgba(226,226,229,0.5)' }}>
+                    <div style={{ height: 100, background: `linear-gradient(135deg, ${coupon.accent}, ${coupon.accent}cc)`, position: 'relative', display: 'flex', alignItems: 'flex-end', padding: 20 }}>
+                      <div style={{ position: 'absolute', right: 6, bottom: -20, fontSize: 110, opacity: 0.3 }}>{coupon.img}</div>
+                      <div style={{ color: '#fff', zIndex: 1, width: '100%' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 8 }}>
+                          <span className="pill" style={{ background: 'rgba(255,255,255,.25)', color: '#fff' }}>{coupon.tag}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: cfg.bg, color: cfg.color, padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700 }}>
+                            <span>{cfg.icon}</span> {cfg.label}
+                          </div>
+                        </div>
+                        <h3 style={{ fontSize: 22, marginTop: 10 }}>{coupon.title}</h3>
+                        <p style={{ opacity: 0.9, fontSize: 13 }}>{coupon.sub}</p>
+                      </div>
+                    </div>
+                    <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                        <div style={{ fontWeight: 800, fontSize: 20, color: 'var(--blue)' }}>{coupon.price}</div>
+                        <div style={{ fontSize: 11, color: 'var(--muted)' }}><span style={{ fontWeight: 700 }}>{coupon.pointsCost}</span> pts used</div>
+                        {isExpired && <span style={{ fontSize: 11, color: 'var(--error)', fontWeight: 600 }}>Expired</span>}
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {canActivate && (
+                          <button onClick={() => activateCoupon(coupon.id)} className="btn" style={{ width: 'auto', padding: '12px 20px', background: 'linear-gradient(135deg, #f37021, #ff9f1c)' }}>
+                            <span style={{ fontSize: 16 }}>⏳</span> Activate at POS
+                          </button>
+                        )}
+                        {canUse && (
+                          <button onClick={() => useCoupon(coupon.id)} className="btn" style={{ width: 'auto', padding: '12px 20px', background: 'linear-gradient(135deg, #1e8e4e, #27ae60)' }}>
+                            <span style={{ fontSize: 16 }}>✅</span> Use Coupon
+                          </button>
+                        )}
+                        {(coupon.status === 'redeemed' || isExpired) && (
+                          <button onClick={() => removeCoupon(coupon.id)} className="btn ghost" style={{ width: 'auto', padding: '12px 20px' }}>
+                            <span style={{ fontSize: 16 }}>🗑️</span> Remove
+                          </button>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--muted)', borderTop: '1px solid var(--line)', paddingTop: 8 }}>
+                        Redeemed: {new Date(coupon.redeemedAt).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        {coupon.activatedAt && <span> • Activated: {new Date(coupon.activatedAt).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' })}</span>}
+                        {coupon.usedAt && <span> • Used: {new Date(coupon.usedAt).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' })}</span>}
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </Shell>
   )
 }
