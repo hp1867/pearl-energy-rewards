@@ -13,7 +13,7 @@ import MapView from '../components/MapView'
 import { integrations } from '../config/integrations'
 import { enablePush } from '../firebase/messaging'
 import { addToWallet } from '../services/wallet'
-import { amenityFilters, transactions, stationFuelRows } from '../data/mockData'
+import { amenityFilters, transactions, stationFuelRows, streakRewards } from '../data/mockData'
 
 const AMENITY_ICON = { Coffee, 'Car Wash': Car, ATM: Banknote, 'Hot Food': UtensilsCrossed, 'EV Charging': Zap }
 
@@ -357,5 +357,216 @@ export function Notifications() {
         ))}
       </div>
     </Shell>
+  )
+}
+
+/* ---------------- Streak Rewards ---------------- */
+export function StreakRewards() {
+  const { member, notify } = useApp()
+  const [burst, setBurst] = useState(null)
+
+  const getStreakProgress = (reward) => {
+    if (reward.type === 'fuel_streak') {
+      return { current: member.fuelStreak || 0, target: reward.trigger, unit: 'days' }
+    } else {
+      return { current: member.weeklyFuelCount || 0, target: reward.trigger, unit: 'times this week' }
+    }
+  }
+
+  const isCompleted = (reward) => {
+    const progress = getStreakProgress(reward)
+    return progress.current >= progress.target
+  }
+
+  const isClaimed = (reward) => {
+    return member.streakRewardsClaimed?.includes(reward.id) || false
+  }
+
+  const canClaim = (reward) => isCompleted(reward) && !isClaimed(reward)
+
+  const claimReward = async (reward) => {
+    if (!canClaim(reward)) return
+    setBurst(reward.id)
+    
+    // Add points to localStorage (demo mode)
+    const customers = JSON.parse(localStorage.getItem('pe_customers') || '{}')
+    const c = customers[member.uid]
+    if (c) {
+      c.points += reward.reward.points
+      c.lifetimePoints += reward.reward.points
+      c.streakRewardsClaimed = [...(c.streakRewardsClaimed || []), reward.id]
+      localStorage.setItem('pe_customers', JSON.stringify(customers))
+      window.dispatchEvent(new Event('customer'))
+    }
+    
+    setTimeout(() => setBurst(null), 1500)
+    notify(`🎉 Streak reward claimed: ${reward.reward.label}!`)
+  }
+
+  const streakRewardsList = streakRewards.map((r) => ({
+    ...r,
+    progress: getStreakProgress(r),
+    completed: isCompleted(r),
+    claimed: isClaimed(r),
+    canClaim: canClaim(r),
+  }))
+
+  return (
+    <Shell title="Streak Rewards">
+      <div style={{ padding: '8px 20px 0' }}>
+        {/* Current streak status card */}
+        <div style={{ background: 'linear-gradient(135deg, #ff6b35 0%, #f7931e 100%)', borderRadius: 20, padding: 20, color: '#fff', marginBottom: 20, boxShadow: '0 12px 32px rgba(255,107,53,0.3)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+            <div style={{ width: 56, height: 56, borderRadius: 16, background: 'rgba(255,255,255,0.2)', display: 'grid', placeItems: 'center' }}>
+              <span style={{ fontSize: 28 }}>🔥</span>
+            </div>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', opacity: 0.9, textTransform: 'uppercase' }}>Current Fuel Streak</div>
+              <div style={{ fontSize: 42, fontWeight: 800, lineHeight: 1 }}>{member.fuelStreak || 0} <span style={{ fontSize: 20, fontWeight: 600, opacity: 0.9 }}>days</span></div>
+            </div>
+            <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
+              <div style={{ fontSize: 11, opacity: 0.8 }}>Last refuel</div>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>{member.lastFuelDate ? new Date(member.lastFuelDate).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }) : '—'}</div>
+            </div>
+          </div>
+          
+          {/* Weekly progress */}
+          <div style={{ marginTop: 8, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', opacity: 0.9 }}>Weekly Refuels</div>
+              <div style={{ fontSize: 18, fontWeight: 800 }}>{member.weeklyFuelCount || 0} / 6</div>
+            </div>
+            <div style={{ height: 8, background: 'rgba(255,255,255,0.2)', borderRadius: 999, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${Math.min(100, ((member.weeklyFuelCount || 0) / 6) * 100)}%`, background: '#fff', borderRadius: 999, transition: 'width 0.5s ease' }} />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 11, opacity: 0.8 }}>
+              <span>Week started {member.weekStartDate ? new Date(member.weekStartDate).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : '—'}</span>
+              <span>{6 - (member.weeklyFuelCount || 0)} more for max reward</span>
+            </div>
+          </div>
+        </div>
+
+        {/* How it works */}
+        <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--ink)', marginBottom: 16 }}>How Streaks Work</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+          <StreakRule color="#ff6b35" title="Daily Streak" desc="Refuel consecutive days to build your flame streak. Miss a day and it resets.">
+            <ul style={{ marginTop: 10, fontSize: 12, color: 'var(--ink-soft)', lineHeight: 1.8 }}>
+              <li>3 days → 200 bonus points</li>
+              <li>7 days → 500 bonus points</li>
+              <li>14 days → 750 bonus points</li>
+              <li>30 days → Free car wash</li>
+            </ul>
+          </StreakRule>
+          <StreakRule color="#0057B8" title="Weekly Target" desc="Count resets every Monday. Hit the weekly targets for bigger rewards.">
+            <ul style={{ marginTop: 10, fontSize: 12, color: 'var(--ink-soft)', lineHeight: 1.8 }}>
+              <li>2 refuels → 50 bonus points</li>
+              <li>4 refuels → 200 bonus points</li>
+              <li>6 refuels → 500 bonus points</li>
+            </ul>
+          </StreakRule>
+        </div>
+
+        {/* Rewards */}
+        <div className="section-title" style={{ marginBottom: 12 }}><h3>Available Rewards</h3></div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {streakRewardsList.map((r, i) => (
+            <StreakRewardCard key={r.id} reward={r} onClaim={() => claimReward(r)} burst={burst === r.id} />
+          ))}
+        </div>
+      </div>
+    </Shell>
+  )
+}
+
+function StreakRule({ color, title, desc, children }) {
+  return (
+    <div style={{ background: '#fff', borderRadius: 16, padding: 16, boxShadow: 'var(--shadow-sm)', border: '1px solid rgba(226,226,229,0.5)' }}>
+      <div style={{ width: 40, height: 40, borderRadius: 12, background: `${color}1a`, display: 'grid', placeItems: 'center', color: color, marginBottom: 12 }}>
+        <span style={{ fontSize: 20 }}>{color === '#ff6b35' ? '🔥' : '🎯'}</span>
+      </div>
+      <h4 style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>{title}</h4>
+      <p style={{ fontSize: 12, color: 'var(--ink-soft)', lineHeight: 1.5, marginBottom: 10 }}>{desc}</p>
+      {children}
+    </div>
+  )
+}
+
+function StreakRewardCard({ reward, onClaim, burst }) {
+  const progressPct = Math.min(100, (reward.progress.current / reward.progress.target) * 100)
+  
+  return (
+    <div style={{ background: '#fff', borderRadius: 20, overflow: 'hidden', boxShadow: 'var(--shadow-md)', border: '1px solid rgba(226,226,229,0.5)' }}>
+      {/* Progress bar at top */}
+      <div style={{ height: 4, background: reward.claimed ? 'linear-gradient(90deg, #1e8e4e, #27ae60)' : reward.canClaim ? 'linear-gradient(90deg, #f37021, #ff9f1c)' : 'var(--surface-variant)' }}>
+        <div style={{ height: '100%', width: `${progressPct}%`, borderRadius: '0 0 0 0', background: reward.claimed ? 'linear-gradient(90deg, #1e8e4e, #27ae60)' : reward.canClaim ? 'linear-gradient(90deg, #f37021, #ff9f1c)' : 'var(--primary)', opacity: reward.claimed || reward.canClaim ? 1 : 0.3, transition: 'width 0.5s ease' }} />
+      </div>
+
+      <div style={{ padding: 20, display: 'flex', gap: 16 }}>
+        <div style={{ width: 56, height: 56, borderRadius: 16, background: `linear-gradient(135deg, ${reward.color || '#0057B8'}, ${reward.color || '#4DA3FF'})`, display: 'grid', placeItems: 'center', flexShrink: 0, boxShadow: '0 8px 24px rgba(0,87,184,0.3)' }}>
+          <span style={{ fontSize: 28 }}>{reward.img}</span>
+        </div>
+        
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <h4 style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)' }}>{reward.title}</h4>
+            {reward.claimed && <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: '#e7f7ee', color: '#1e8e4e' }}>✓ Claimed</span>}
+            {reward.canClaim && !reward.claimed && <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: '#fff4e5', color: '#b9742f' }}>Ready to Claim</span>}
+            {!reward.completed && !reward.claimed && <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: 'var(--surface-c)', color: 'var(--muted)' }}>{reward.progress.current}/{reward.progress.target} {reward.progress.unit}</span>}
+          </div>
+          <p style={{ fontSize: 12.5, color: 'var(--ink-soft)', lineHeight: 1.4, marginBottom: 8 }}>{reward.description}</p>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 999, background: 'var(--surface-low)', fontSize: 12, fontWeight: 700, color: 'var(--primary)' }}>
+              <span style={{ fontSize: 14 }}>⚡</span> +{reward.reward.points.toLocaleString()} pts
+            </div>
+            {reward.reward.label.includes('Car Wash') && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 999, background: 'linear-gradient(135deg, #6c3483, #8e44ad)', color: '#fff', fontSize: 11, fontWeight: 700 }}>
+                <span style={{ fontSize: 12 }}>🚗</span> Free Car Wash
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Claim button */}
+        <button 
+          onClick={onClaim}
+          disabled={!reward.canClaim || reward.claimed}
+          style={{ 
+            padding: '12px 20px', 
+            borderRadius: 12, 
+            fontWeight: 700, 
+            fontSize: 13,
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 6,
+            flexDirection: 'column',
+            background: reward.claimed ? 'var(--muted)' : reward.canClaim ? 'linear-gradient(135deg, #f37021, #ff9f1c)' : 'var(--surface-c)',
+            color: reward.claimed ? '#fff' : reward.canClaim ? '#fff' : 'var(--muted)',
+            boxShadow: reward.canClaim ? '0 6px 20px rgba(243,112,33,0.4)' : 'none',
+            opacity: reward.claimed ? 0.7 : 1,
+          }}
+        >
+          {reward.claimed ? (
+            <>
+              <span style={{ fontSize: 16 }}>✓</span> Claimed
+            </>
+          ) : reward.canClaim ? (
+            <>
+              <span style={{ fontSize: 16 }}>🏆</span> Claim
+            </>
+          ) : (
+            <>
+              <span style={{ fontSize: 16 }}>⏳</span> In Progress
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Progress detail */}
+      <div style={{ padding: '0 20px 16px', display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--muted)' }}>
+        <span>{reward.type === 'fuel_streak' ? '🔥 Daily streak' : '📅 Weekly target'}</span>
+        <span>{reward.progress.current} / {reward.progress.target} {reward.progress.unit}</span>
+      </div>
+    </div>
   )
 }

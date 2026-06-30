@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Star, ArrowRight, CreditCard, Coffee, Fuel, UtensilsCrossed, ShoppingBag, Ticket } from 'lucide-react'
+import { Star, ArrowRight, CreditCard, Coffee, Fuel, UtensilsCrossed, ShoppingBag, Ticket, Flame } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { tiers } from '../data/mockData'
 
@@ -29,7 +29,12 @@ export default function RewardsScreen() {
           <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--grad-blue)', display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 700, fontSize: 12 }}>{member.firstName[0]}{member.lastName[0]}</div>
           <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--primary)' }}>Pearl Energy</span>
         </div>
-        <button onClick={() => setOverlay('wallet')} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 14px', borderRadius: 999, background: 'var(--primary-container)', color: '#fff', fontWeight: 700, fontSize: 13, boxShadow: '0 6px 18px rgba(0,87,184,0.28)' }}><CreditCard size={17} /> My Card</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button onClick={() => setOverlay('streaks')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 999, background: 'linear-gradient(135deg, #ff6b35, #f7931e)', color: '#fff', fontWeight: 700, fontSize: 12, boxShadow: '0 4px 14px rgba(255,107,53,0.4)' }}>
+            <Flame size={14} /> Streaks
+          </button>
+          <button onClick={() => setOverlay('wallet')} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 14px', borderRadius: 999, background: 'var(--primary-container)', color: '#fff', fontWeight: 700, fontSize: 13, boxShadow: '0 6px 18px rgba(0,87,184,0.28)' }}><CreditCard size={17} /> My Card</button>
+        </div>
       </header>
 
       <div className="scroll" style={{ paddingTop: 84 }}>

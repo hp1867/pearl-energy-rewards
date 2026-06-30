@@ -46,6 +46,12 @@ export function buildNewCustomer({ firstName, lastName, email, mobile, dob, uid 
     joined: new Date().toISOString(),
     rewardsRedeemed: [],
     transactions: [],
+    // Streak tracking
+    fuelStreak: 0,
+    lastFuelDate: null,
+    weeklyFuelCount: 0,
+    weekStartDate: null,
+    streakRewardsClaimed: [],
     createdAt: Date.now(),
     updatedAt: Date.now(),
   }
