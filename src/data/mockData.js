@@ -13,6 +13,12 @@ export const member = {
   tier: 'Gold',
   joined: 'Mar 2024',
   lifetimePoints: 9120,
+  // Streak tracking
+  fuelStreak: 3,
+  lastFuelDate: '2026-06-28',
+  weeklyFuelCount: 3,
+  weekStartDate: '2026-06-23',
+  streakRewardsClaimed: [],
 }
 
 export const tiers = [
@@ -157,6 +163,14 @@ export const stationFuelRows = [
 
 export const amenityFilters = ['Car Wash', 'ATM', 'Coffee', 'Hot Food', 'EV Charging']
 
+// Streak reward configuration
+export const streakRewards = [
+  { id: 'streak_3', trigger: 3, type: 'fuel_streak', title: '3-Day Fuel Streak', description: 'Refuel 3 days in a row', reward: { points: 200, icon: '🔥', label: '200 Bonus Points' } },
+  { id: 'streak_7', trigger: 7, type: 'fuel_streak', title: 'Week Warrior', description: 'Refuel 7 days in a row', reward: { points: 500, icon: '🏆', label: '500 Bonus Points' } },
+  { id: 'weekly_4', trigger: 4, type: 'weekly_fuel', title: 'Weekly Regular', description: 'Refuel 4 times this week', reward: { points: 300, icon: '⭐', label: '300 Bonus Points' } },
+  { id: 'weekly_6', trigger: 6, type: 'weekly_fuel', title: 'Super Commuter', description: 'Refuel 6 times this week', reward: { points: 750, icon: '🚗', label: 'Free Car Wash + 250 Points' } },
+]
+
 export const rewards = [
   { id: 1, cat: 'Free Coffee', title: 'Free Barista Coffee', cost: 500, img: '☕', color: '#7a4a2b' },
   { id: 2, cat: 'Fuel Discount', title: '$10 Fuel Voucher', cost: 1000, img: '⛽', color: '#0057B8' },
@@ -182,4 +196,18 @@ export const notifications = [
   { id: 1, icon: '⛽', title: 'Fuel prices dropped near you', body: 'ULP 91 now $1.86 at Penrith', time: '10m ago' },
   { id: 2, icon: '⭐', title: 'You earned 78 points', body: 'From your Parramatta visit', time: '1d ago' },
   { id: 3, icon: '☕', title: 'New coffee deal available', body: 'Coffee + muffin just $6.50', time: '2d ago' },
+]
+
+// Streak rewards configuration
+export const streakRewards = [
+  // Fuel streak rewards (consecutive days)
+  { id: 'streak_3', type: 'fuel_streak', trigger: 3, title: '3-Day Fuel Streak', description: 'Refuel 3 days in a row', rewardType: 'points', value: 100, img: '🔥', color: '#f39c12' },
+  { id: 'streak_7', type: 'fuel_streak', trigger: 7, title: 'Week Warrior', description: 'Refuel 7 days in a row', rewardType: 'points', value: 300, img: '🏆', color: '#e74c3c' },
+  { id: 'streak_14', type: 'fuel_streak', trigger: 14, title: 'Fortnight Champion', description: 'Refuel 14 days in a row', rewardType: 'points', value: 750, img: '👑', color: '#9b59b6' },
+  { id: 'streak_30', type: 'fuel_streak', trigger: 30, title: 'Monthly Master', description: 'Refuel 30 days in a row', rewardType: 'free_wash', value: 1, img: '🚗✨', color: '#3498db' },
+  
+  // Weekly fuel count rewards
+  { id: 'weekly_2', type: 'weekly_fuel', trigger: 2, title: 'Twice This Week', description: 'Refuel 2 times this week', rewardType: 'points', value: 50, img: '⭐', color: '#f1c40f' },
+  { id: 'weekly_4', type: 'weekly_fuel', trigger: 4, title: 'Four Fill-Ups', description: 'Refuel 4 times this week', rewardType: 'points', value: 200, img: '⛽⛽⛽⛽', color: '#27ae60' },
+  { id: 'weekly_6', type: 'weekly_fuel', trigger: 6, title: 'Daily Driver', description: 'Refuel 6 times this week', rewardType: 'points', value: 500, img: '💎', color: '#3498db' },
 ]
