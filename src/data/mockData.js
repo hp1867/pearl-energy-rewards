@@ -29,11 +29,11 @@ export const tiers = [
 ]
 
 export const offers = [
-  { id: 1, cat: 'Coffee Deals', title: 'Barista Coffee + Muffin', sub: 'Any size, any day', price: '$6.50', img: '☕', accent: '#7a4a2b', expiry: '30 Jun 2026', tag: 'POPULAR' },
-  { id: 2, cat: 'Fuel Deals', title: '6¢ off per litre', sub: 'Weekend fuel special', price: 'Save big', img: '⛽', accent: '#0057B8', expiry: '08 Jun 2026', tag: 'ENDING SOON' },
-  { id: 3, cat: 'Food Deals', title: 'Meal Combo', sub: 'Burger + Chips + Drink', price: '$11.90', img: '🍔', accent: '#c0392b', expiry: '21 Jun 2026', tag: 'COMBO' },
-  { id: 4, cat: 'Imported Products', title: 'Imported Snack Box', sub: 'Japan & Korea range', price: '$14.00', img: '🍫', accent: '#6c3483', expiry: '15 Jul 2026', tag: 'NEW' },
-  { id: 5, cat: 'Seasonal Specials', title: 'Winter Energy Bundle', sub: '2 Energy drinks + bar', price: '$8.50', img: '⚡', accent: '#1f7be0', expiry: '31 Jul 2026', tag: 'SEASONAL' },
+  { id: 1, cat: 'Coffee Deals', title: 'Barista Coffee + Muffin', sub: 'Any size, any day', price: '$6.50', img: '☕', accent: '#7a4a2b', expiry: '30 Jun 2026', tag: 'POPULAR', pointsCost: 500 },
+  { id: 2, cat: 'Fuel Deals', title: '6¢ off per litre', sub: 'Weekend fuel special', price: 'Save big', img: '⛽', accent: '#0057B8', expiry: '08 Jun 2026', tag: 'ENDING SOON', pointsCost: 300 },
+  { id: 3, cat: 'Food Deals', title: 'Meal Combo', sub: 'Burger + Chips + Drink', price: '$11.90', img: '🍔', accent: '#c0392b', expiry: '21 Jun 2026', tag: 'COMBO', pointsCost: 800 },
+  { id: 4, cat: 'Imported Products', title: 'Imported Snack Box', sub: 'Japan & Korea range', price: '$14.00', img: '🍫', accent: '#6c3483', expiry: '15 Jul 2026', tag: 'NEW', pointsCost: 1000 },
+  { id: 5, cat: 'Seasonal Specials', title: 'Winter Energy Bundle', sub: '2 Energy drinks + bar', price: '$8.50', img: '⚡', accent: '#1f7be0', expiry: '31 Jul 2026', tag: 'SEASONAL', pointsCost: 600 },
 ]
 
 export const carousel = [
