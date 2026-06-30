@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { CreditCard, Star, MapPin, ArrowUpRight, Zap, Cookie, Droplet, Navigation, Target } from 'lucide-react'
+import { CreditCard, Star, MapPin, ArrowUpRight, Zap, Cookie, Droplet, Navigation, Target, Tag } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import Card3D from '../components/Card3D'
 import MapView from '../components/MapView'
@@ -58,9 +58,14 @@ export default function HomeScreen() {
             <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--primary)' }}>{member.firstName}</h1>
           </div>
         </div>
-        <button onClick={() => setOverlay('wallet')} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 14px', borderRadius: 999, background: 'var(--primary-container)', color: '#fff', fontWeight: 700, fontSize: 13, boxShadow: '0 6px 18px rgba(0,87,184,0.28)' }}>
-          <CreditCard size={17} /> My Card
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button onClick={() => setOverlay('coupons')} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '9px 12px', borderRadius: 999, background: 'var(--secondary-container)', color: 'var(--primary)', fontWeight: 700, fontSize: 12, boxShadow: '0 4px 14px rgba(0,87,184,0.18)' }}>
+            <Tag size={15} /> My Coupons
+          </button>
+          <button onClick={() => setOverlay('wallet')} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 14px', borderRadius: 999, background: 'var(--primary-container)', color: '#fff', fontWeight: 700, fontSize: 13, boxShadow: '0 6px 18px rgba(0,87,184,0.28)' }}>
+            <CreditCard size={17} /> My Card
+          </button>
+        </div>
       </header>
 
       <div className="scroll" style={{ paddingTop: 80 }}>
