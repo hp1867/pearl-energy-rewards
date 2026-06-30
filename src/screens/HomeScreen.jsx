@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { CreditCard, Star, MapPin, ArrowUpRight, Zap, Cookie, Droplet, Navigation, Flame, Target } from 'lucide-react'
+import { CreditCard, Star, MapPin, ArrowUpRight, Zap, Cookie, Droplet, Navigation, Target } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import Card3D from '../components/Card3D'
 import MapView from '../components/MapView'
@@ -10,6 +10,14 @@ import { hotDeals, tiers, streakRewards } from '../data/mockData'
 const greeting = () => {
   const h = new Date().getHours()
   return h < 12 ? 'Good Morning' : h < 18 ? 'Good Afternoon' : 'Good Evening'
+}
+
+const getWeekNumber = () => {
+  const now = new Date()
+  const start = new Date(now.getFullYear(), 0, 1)
+  const diff = now - start + (start.getTimezoneOffset() - now.getTimezoneOffset()) * 60000
+  const oneWeek = 604800000
+  return Math.ceil((diff + start.getTimezoneOffset() * 60000) / oneWeek)
 }
 
 const DEAL_ICON = [Zap, Cookie, Droplet, Zap, Cookie]
@@ -32,12 +40,9 @@ export default function HomeScreen() {
   const away = next ? next.min - member.points : 0
   const th = tierTheme(member.tier)
 
-  // Streak progress calculations
-  const fuelStreak = member.fuelStreak || 0
+  // Weekly streak progress (only weekly, no daily)
   const weeklyFuel = member.weeklyFuelCount || 0
-  const nextStreakReward = [...streakRewards].filter(r => r.type === 'fuel_streak').sort((a, b) => a.trigger - b.trigger).find(r => fuelStreak < r.trigger)
   const nextWeeklyReward = [...streakRewards].filter(r => r.type === 'weekly_fuel').sort((a, b) => a.trigger - b.trigger).find(r => weeklyFuel < r.trigger)
-  const streakProgress = nextStreakReward ? (fuelStreak / nextStreakReward.trigger) * 100 : 100
   const weeklyProgress = nextWeeklyReward ? (weeklyFuel / nextWeeklyReward.trigger) * 100 : 100
 
   return (
@@ -93,55 +98,36 @@ export default function HomeScreen() {
           </Card3D>
         </div>
 
-        {/* Streaks Card - underneath the points card */}
+        {/* Weekly Streak Card - underneath the points card */}
         <div style={{ padding: '0 20px', marginTop: 14 }}>
           <Card3D intensity={6} glare onClick={() => setOverlay('streaks')}>
-            <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 24, padding: 24, background: 'linear-gradient(135deg, #ff6b35 0%, #f7931e 100%)', color: '#fff', boxShadow: '0 16px 44px rgba(255,107,53,0.4)', border: '1px solid rgba(255,255,255,0.2)' }}>
-              <div style={{ position: 'absolute', right: -40, top: -40, width: 140, height: 140, background: 'rgba(255,255,255,0.15)', borderRadius: '50%', filter: 'blur(40px)' }} />
+            <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 24, padding: 24, background: th.card, boxShadow: `0 16px 44px ${th.glow}`, border: '1px solid rgba(255,255,255,0.25)' }}>
+              <div style={{ position: 'absolute', right: -40, top: -40, width: 140, height: 140, background: th.accent, borderRadius: '50%', filter: 'blur(40px)' }} />
+              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(115deg, transparent 38%, rgba(255,255,255,0.18) 50%, transparent 62%)', pointerEvents: 'none' }} />
               <div style={{ position: 'relative', zIndex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                  <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'grid', placeItems: 'center' }}>
-                    <Flame size={20} />
-                  </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
                   <div>
-                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', opacity: 0.9, textTransform: 'uppercase' }}>Streak Progress</div>
-                    <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1 }}>{fuelStreak} <span style={{ fontSize: 16, fontWeight: 600, opacity: 0.9 }}>days</span></div>
+                    <div className="label" style={{ color: th.sub }}>Weekly Streak</div>
+                    <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1, letterSpacing: '-0.02em', color: th.text }}>{weeklyFuel} <span style={{ fontSize: 14, fontWeight: 500, color: th.sub }}>refuels</span></div>
                   </div>
-                  <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
-                    <div style={{ fontSize: 10, opacity: 0.8 }}>Last refuel</div>
-                    <div style={{ fontSize: 13, fontWeight: 600 }}>{member.lastFuelDate ? new Date(member.lastFuelDate).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }) : '—'}</div>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 12px', borderRadius: 999, background: th.badge.background, color: th.badge.color, border: th.badge.border }}>
+                    <Target size={13} fill={th.badge.color} color={th.badge.color} />
+                    <span style={{ fontSize: 12, fontWeight: 700, color: th.badge.color, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Week {getWeekNumber()}</span>
                   </div>
                 </div>
-
-                {/* Daily streak progress */}
-                <div style={{ marginBottom: 16 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', opacity: 0.9 }}>Daily Streak</span>
-                    <span style={{ fontSize: 14, fontWeight: 800 }}>{fuelStreak} / {nextStreakReward?.trigger || 'Max'}</span>
-                  </div>
-                  <div style={{ height: 6, background: 'rgba(255,255,255,0.2)', borderRadius: 999, overflow: 'hidden' }}>
-                    <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min(100, streakProgress)}%` }} transition={{ duration: 1, ease: 'easeOut' }}
-                      style={{ height: '100%', background: '#fff', borderRadius: 999 }} />
-                  </div>
-                  <p style={{ fontSize: 10, opacity: 0.8, marginTop: 4, textAlign: 'right' }}>
-                    {nextStreakReward ? `${nextStreakReward.trigger - fuelStreak} more days for ${nextStreakReward.reward.label}` : 'All streak rewards claimed! 🎉'}
-                  </p>
-                </div>
-
+                
                 {/* Weekly progress */}
-                <div style={{ paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.2)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', opacity: 0.9 }}>This Week</span>
-                    <span style={{ fontSize: 14, fontWeight: 800 }}>{weeklyFuel} / {nextWeeklyReward?.trigger || 'Max'}</span>
-                  </div>
-                  <div style={{ height: 6, background: 'rgba(255,255,255,0.2)', borderRadius: 999, overflow: 'hidden' }}>
-                    <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min(100, weeklyProgress)}%` }} transition={{ duration: 1, ease: 'easeOut', delay: 0.2 }}
-                      style={{ height: '100%', background: '#fff', borderRadius: 999 }} />
-                  </div>
-                  <p style={{ fontSize: 10, opacity: 0.8, marginTop: 4, textAlign: 'right' }}>
-                    {nextWeeklyReward ? `${nextWeeklyReward.trigger - weeklyFuel} more refuels for ${nextWeeklyReward.reward.label}` : 'Weekly max reached! 🏆'}
-                  </p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <span style={{ fontSize: 12, fontWeight: 500, color: th.sub }}>Progress to next reward</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: th.text }}>{nextWeeklyReward ? nextWeeklyReward.reward.label : 'Max rewards earned'}</span>
                 </div>
+                <div style={{ width: '100%', height: 8, background: th.track, borderRadius: 999, overflow: 'hidden' }}>
+                  <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min(100, weeklyProgress)}%` }} transition={{ duration: 1, ease: 'easeOut' }}
+                    style={{ height: '100%', borderRadius: 999, background: th.fill }} />
+                </div>
+                <p style={{ fontSize: 12, color: th.sub, marginTop: 8, textAlign: 'center' }}>
+                  {nextWeeklyReward ? `${nextWeeklyReward.trigger - weeklyFuel} more refuels this week for ${nextWeeklyReward.reward.label}` : 'All weekly rewards claimed! 🏆'}
+                </p>
               </div>
             </div>
           </Card3D>
