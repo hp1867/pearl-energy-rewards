@@ -643,7 +643,10 @@ export function MyCoupons() {
                           </button>
                         )}
                         {(reward.status === 'redeemed' || isExpired) && (
-                          })}}
+                          <button onClick={() => removeReward(reward.id)} className="btn ghost" style={{ width: 'auto', padding: '12px 20px' }}>
+                            <span style={{ fontSize: 16 }}>🗑️</span> Remove
+                          </button>
+                        )}
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--muted)', borderTop: '1px solid var(--line)', paddingTop: 8 }}>
                         Redeemed: {new Date(reward.redeemedAt).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' })}
