@@ -14,8 +14,8 @@ export function AppProvider({ children }) {
   const [user, setUser] = useState(undefined)
   const [member, setMember] = useState(null)
 
-  // Pending coupons (redeemed but not yet scanned at POS)
-  const [pendingCoupons, setPendingCoupons] = useState([])
+  // Pending rewards (redeemed but not yet scanned at POS)
+  const [pendingRewards, setPendingRewards] = useState([])
 
   const [offers, setOffers] = useState(seedOffers)
   const [rewards, setRewards] = useState(seedRewards)
@@ -56,75 +56,72 @@ export function AppProvider({ children }) {
 
   const logout = useCallback(async () => { await data.signOutUser(); setTab('home'); setOverlay(null); notify('Logged out') }, [notify])
 
-  // Redeem an offer - adds to pending coupons (not active until scanned at POS)
-  const redeemOffer = useCallback(async (offer) => {
+  // Redeem a reward (points-based) - adds to pending rewards
+  const redeemReward = useCallback(async (reward) => {
     if (!member) return { ok: false, message: 'Please log in first' }
-    if (member.points < (offer.pointsCost || 0)) {
-      return { ok: false, message: `Need ${(offer.pointsCost || 0) - member.points} more points` }
+    if (member.points < reward.cost) {
+      return { ok: false, message: `Need ${reward.cost - member.points} more points` }
     }
     
     // Deduct points locally immediately
-    const newPoints = member.points - (offer.pointsCost || 0)
+    const newPoints = member.points - reward.cost
     const newLifetimePoints = member.lifetimePoints // Don't reduce lifetime
     
-    // Add to pending coupons
-    const newCoupon = {
+    // Add to pending rewards
+    const newPendingReward = {
       id: Date.now(),
-      offerId: offer.id,
-      title: offer.title,
-      sub: offer.sub,
-      price: offer.price,
-      img: offer.img,
-      accent: offer.accent,
-      tag: offer.tag,
-      expiry: offer.expiry,
-      pointsCost: offer.pointsCost || 0,
+      rewardId: reward.id,
+      title: reward.title,
+      cat: reward.cat,
+      cost: reward.cost,
+      img: reward.img,
+      color: reward.color,
       status: 'not_active', // not_active | active | redeemed
       redeemedAt: new Date().toISOString(),
       activatedAt: null,
     }
     
-    setPendingCoupons(prev => [...prev, newCoupon])
+    setPendingRewards(prev => [...prev, newPendingReward])
     
     // Update member points
     setMember(prev => prev ? { ...prev, points: newPoints, lifetimePoints: newLifetimePoints } : null)
     
     // Also persist to backend
     try {
-      await data.adminAdjustPoints(member.uid, -(offer.pointsCost || 0), { 
-        store: 'Offer Redeemed', 
+      await data.adminAdjustPoints(member.uid, -reward.cost, { 
+        store: 'Reward Redeemed', 
         amount: 0, 
-        type: `Offer: ${offer.title}` 
+        type: `Reward: ${reward.title}` 
       })
     } catch (e) {
       console.error('Failed to persist points deduction', e)
     }
     
-    notify(`✅ ${offer.title} added to coupons. Scan at POS to activate.`)
-    return { ok: true, coupon: newCoupon }
+    notify(`✅ ${reward.title} added to My Rewards. Scan at POS to activate.`)
+    return { ok: true, reward: newPendingReward }
   }, [member, notify])
 
-  // Activate a pending coupon (called when scanned at POS)
-  const activateCoupon = useCallback(async (couponId) => {
-    setPendingCoupons(prev => prev.map(c => 
-      c.id === couponId ? { ...c, status: 'active', activatedAt: new Date().toISOString() } : c
+  // Activate a pending reward (called when scanned at POS)
+  const activateReward = useCallback(async (rewardId) => {
+    setPendingRewards(prev => prev.map(r => 
+      r.id === rewardId ? { ...r, status: 'active', activatedAt: new Date().toISOString() } : r
     ))
-    notify('✅ Coupon activated!')
+    notify('✅ Reward activated!')
     return { ok: true }
   }, [notify])
 
-  // Mark coupon as fully redeemed (used)
-  const useCoupon = useCallback(async (couponId) => {
-    setPendingCoupons(prev => prev.map(c => 
-      c.id === couponId ? { ...c, status: 'redeemed', usedAt: new Date().toISOString() } : c
+  // Mark reward as fully redeemed (used)
+  const useReward = useCallback(async (rewardId) => {
+    setPendingRewards(prev => prev.map(r => 
+      r.id === rewardId ? { ...r, status: 'redeemed', usedAt: new Date().toISOString() } : r
     ))
-    notify('✅ Coupon redeemed!')
+    notify('✅ Reward redeemed!')
     return { ok: true }
   }, [notify])
 
-  // Remove expired/used coupons
-  const removeCoupon = useCallback((couponId) => {
-    setPendingCoupons(prev => prev.filter(c => c.id !== couponId))
+  // Remove expired/used rewards
+  const removeReward = useCallback((rewardId) => {
+    setPendingRewards(prev => prev.filter(r => r.id !== rewardId))
   }, [])
 
   const lookupCustomer = useCallback((customerNumber) => data.lookupCustomer(customerNumber), [])
@@ -134,7 +131,7 @@ export function AppProvider({ children }) {
     tab, setTab, overlay, setOverlay, overlayArg, setOverlayArg, toast, notify,
     user, member, authed: !!member, resolving: user === undefined,
     offers, rewards, fuelPrices, menu, categories, stations, notifications,
-    pendingCoupons, redeemOffer, activateCoupon, useCoupon, removeCoupon,
+    pendingRewards, redeemReward, activateReward, useReward, removeReward,
     signup, login, loginProvider, logout, lookupCustomer,
   }
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

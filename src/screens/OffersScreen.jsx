@@ -1,37 +1,20 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Clock, AlertCircle } from 'lucide-react'
+import { Clock } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import Card3D from '../components/Card3D'
 
 const CATS = ['All', 'Fuel Deals', 'Food Deals', 'Coffee Deals', 'Imported Products', 'Seasonal Specials']
 
 export default function OffersScreen() {
-  const { notify, offers, redeemOffer, member } = useApp()
+  const { notify, offers } = useApp()
   const [cat, setCat] = useState('All')
-  const [redeeming, setRedeeming] = useState(null)
   const list = cat === 'All' ? offers : offers.filter((o) => o.cat === cat)
-
-  const handleRedeem = async (offer) => {
-    const pointsCost = offer.pointsCost || 0
-    if (member && member.points < pointsCost) {
-      notify(`Need ${pointsCost - member.points} more points`)
-      return
-    }
-    setRedeeming(offer.id)
-    const res = await redeemOffer(offer)
-    setRedeeming(null)
-    if (res.ok) {
-      notify(`✅ ${offer.title} added to My Coupons. Scan at POS to activate.`)
-    } else {
-      notify(res.message)
-    }
-  }
 
   return (
     <div className="screen">
       <div className="scroll">
-        <Header title="Offers" sub="Hand-picked deals for members" />
+        <Header title="Offers" sub="General store promotions - auto-applied at POS when you scan your card" />
         <div className="h-scroll" style={{ marginTop: 4 }}>
           {CATS.map((c) => (
             <button key={c} className={`chip ${cat === c ? 'active' : ''}`} onClick={() => setCat(c)}>{c}</button>
@@ -57,20 +40,10 @@ export default function OffersScreen() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
                         <Clock size={13} /> Expires {o.expiry}
                       </div>
-                      {(o.pointsCost || 0) > 0 && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--primary)', fontWeight: 700, marginTop: 4 }}>
-                          <AlertCircle size={13} /> {o.pointsCost} pts
-                        </div>
-                      )}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--primary)', fontWeight: 700, marginTop: 4 }}>
+                        <span style={{ fontSize: 12 }}>🏷️</span> Auto-applied at POS
+                      </div>
                     </div>
-                    <button 
-                      className="btn" 
-                      style={{ width: 'auto', padding: '14px 26px' }} 
-                      onClick={() => handleRedeem(o)}
-                      disabled={redeeming === o.id}
-                    >
-                      {redeeming === o.id ? 'Redeeming...' : 'Redeem'}
-                    </button>
                   </div>
                 </div>
               </Card3D>

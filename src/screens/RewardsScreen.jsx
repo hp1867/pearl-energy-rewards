@@ -7,7 +7,7 @@ import { tiers } from '../data/mockData'
 const CAT_ICON = { 'Free Coffee': Coffee, 'Fuel Discount': Fuel, 'Food Discount': UtensilsCrossed, Merchandise: ShoppingBag, 'Partner Rewards': Ticket }
 
 export default function RewardsScreen() {
-  const { member, rewards, redeem, setOverlay, notify } = useApp()
+  const { member, rewards, redeemReward, setOverlay, notify } = useApp()
   const [burst, setBurst] = useState(false)
   const [cat, setCat] = useState('All')
 
@@ -19,7 +19,7 @@ export default function RewardsScreen() {
   const pct = next ? Math.min(100, ((member.points - tier.min) / (next.min - tier.min)) * 100) : 100
   const away = next ? next.min - member.points : 0
 
-  const doRedeem = async (r) => { const ok = await redeem(r); if (ok) { setBurst(true); setTimeout(() => setBurst(false), 1400) } }
+  const doRedeem = async (r) => { const ok = await redeemReward(r); if (ok.ok) { setBurst(true); setTimeout(() => setBurst(false), 1400) } }
 
   return (
     <div className="screen">
