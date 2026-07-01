@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import {
   ChevronLeft, TrendingDown, TrendingUp, Navigation, Search, SlidersHorizontal, Crosshair,
@@ -13,6 +13,7 @@ import MapView from '../components/MapView'
 import { integrations } from '../config/integrations'
 import { enablePush } from '../firebase/messaging'
 import { addToWallet } from '../services/wallet'
+import { data } from '../services/data'
 import { amenityFilters, transactions, stationFuelRows, streakRewards } from '../data/mockData'
 
 const AMENITY_ICON = { Coffee, 'Car Wash': Car, ATM: Banknote, 'Hot Food': UtensilsCrossed, 'EV Charging': Zap }
@@ -573,8 +574,23 @@ function StreakRewardCard({ reward, onClaim, burst }) {
 
 /* ---------------- My Rewards (Pending) ---------------- */
 export function MyCoupons() {
-  const { pendingRewards, activateReward, useReward, removeReward, notify, member } = useApp()
+  const { pendingRewards, activateReward, useReward, removeReward, notify, member, setPendingRewards } = useApp()
   const [filter, setFilter] = useState('all') // all | not_active | active | redeemed
+
+  // On mount, reload pendingRewards from localStorage as a safety net
+  useEffect(() => {
+    if (!member?.uid || !data?.getPendingCoupons) return
+    data.getPendingCoupons(member.uid).then(r => {
+      const persisted = r || []
+      setPendingRewards(prev => {
+        if (persisted.length === 0) return prev
+        const prevIds = new Set(prev.map(p => p.id))
+        const newPersisted = persisted.filter(p => !prevIds.has(p.id))
+        if (newPersisted.length === 0) return prev
+        return [...prev, ...newPersisted]
+      })
+    }).catch(() => {})
+  }, [member?.uid])
 
   const filtered = pendingRewards.filter(r => filter === 'all' || r.status === filter)
 
