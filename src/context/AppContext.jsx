@@ -17,11 +17,19 @@ export function AppProvider({ children }) {
   // Pending rewards (redeemed but not yet scanned at POS)
   const [pendingRewards, setPendingRewards] = useState([])
 
-  // Load persisted pending rewards when user logs in
+  // Load persisted pending rewards when user logs in (merge, don't overwrite)
   useEffect(() => {
     if (!user) { setPendingRewards([]); return }
     if (data.getPendingCoupons) {
-      data.getPendingCoupons(user.uid).then(r => setPendingRewards(r || [])).catch(() => {})
+      data.getPendingCoupons(user.uid).then(r => {
+        const persisted = r || []
+        setPendingRewards(prev => {
+          if (prev.length === 0) return persisted
+          const prevIds = new Set(prev.map(p => p.id))
+          const newPersisted = persisted.filter(p => !prevIds.has(p.id))
+          return [...prev, ...newPersisted]
+        })
+      }).catch(() => {})
     }
   }, [user])
 
@@ -84,16 +92,18 @@ export function AppProvider({ children }) {
       activatedAt: null,
     }
     
+    // Persist to backend FIRST so localStorage is guaranteed up-to-date
+    if (data.addPendingCoupon) {
+      await data.addPendingCoupon(member.uid, newPendingReward).catch(e => console.error('Failed to persist pending reward', e))
+    }
+
     // Update local state immediately (UI-first)
     setPendingRewards(prev => [...prev, newPendingReward])
     
     // Deduct points locally immediately
     setMember(prev => prev ? { ...prev, points: prev.points - reward.cost } : null)
     
-    // Persist to backend in background (fire-and-forget)
-    if (data.addPendingCoupon) {
-      data.addPendingCoupon(member.uid, newPendingReward).catch(e => console.error('Failed to persist pending reward', e))
-    }
+    // Persist points deduction in background (fire-and-forget — subscription will sync member)
     if (data.adminAdjustPoints) {
       data.adminAdjustPoints(member.uid, -reward.cost, { 
         store: 'Reward Redeemed', 
@@ -145,7 +155,7 @@ export function AppProvider({ children }) {
     tab, setTab, overlay, setOverlay, overlayArg, setOverlayArg, toast, notify,
     user, member, authed: !!member, resolving: user === undefined,
     offers, rewards, fuelPrices, menu, categories, stations, notifications,
-    pendingRewards, redeemReward, activateReward, useReward, removeReward,
+    pendingRewards, setPendingRewards, redeemReward, activateReward, useReward, removeReward,
     signup, login, loginProvider, logout, lookupCustomer,
   }
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
