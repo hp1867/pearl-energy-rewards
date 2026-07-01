@@ -84,41 +84,22 @@ export function AppProvider({ children }) {
       activatedAt: null,
     }
     
-    // Persist to backend first
-    try {
-      if (data.addPendingCoupon) {
-        await data.addPendingCoupon(member.uid, newPendingReward)
-      }
-    } catch (e) {
-      console.error('Failed to persist pending reward', e)
-    }
+    // Update local state immediately (UI-first)
+    setPendingRewards(prev => [...prev, newPendingReward])
     
-    // Update local state (reload from backend to stay in sync)
-    try {
-      if (data.getPendingCoupons) {
-        const fresh = await data.getPendingCoupons(member.uid)
-        setPendingRewards(fresh || [])
-      } else {
-        setPendingRewards(prev => [...prev, newPendingReward])
-      }
-    } catch (e) {
-      setPendingRewards(prev => [...prev, newPendingReward])
-    }
+    // Deduct points locally immediately
+    setMember(prev => prev ? { ...prev, points: prev.points - reward.cost } : null)
     
-    // Deduct points via backend (handles persistence + subscription update)
-    try {
-      if (data.adminAdjustPoints) {
-        await data.adminAdjustPoints(member.uid, -reward.cost, { 
-          store: 'Reward Redeemed', 
-          amount: 0, 
-          type: `Reward: ${reward.title}` 
-        })
-      } else {
-        setMember(prev => prev ? { ...prev, points: prev.points - reward.cost } : null)
-      }
-    } catch (e) {
-      console.error('Failed to persist points deduction', e)
-      setMember(prev => prev ? { ...prev, points: prev.points - reward.cost } : null)
+    // Persist to backend in background (fire-and-forget)
+    if (data.addPendingCoupon) {
+      data.addPendingCoupon(member.uid, newPendingReward).catch(e => console.error('Failed to persist pending reward', e))
+    }
+    if (data.adminAdjustPoints) {
+      data.adminAdjustPoints(member.uid, -reward.cost, { 
+        store: 'Reward Redeemed', 
+        amount: 0, 
+        type: `Reward: ${reward.title}` 
+      }).catch(e => console.error('Failed to persist points deduction', e))
     }
     
     notify(`✅ ${reward.title} added to My Rewards. Scan at POS to activate.`)
@@ -127,27 +108,11 @@ export function AppProvider({ children }) {
 
   // Activate a pending reward (called when scanned at POS)
   const activateReward = useCallback(async (rewardId) => {
-    try {
-      if (data.activatePendingCoupon && member) {
-        await data.activatePendingCoupon(member.uid, rewardId)
-      }
-    } catch (e) {
-      console.error('Failed to persist activation', e)
-    }
-    // Reload from backend
-    try {
-      if (data.getPendingCoupons && member) {
-        const fresh = await data.getPendingCoupons(member.uid)
-        setPendingRewards(fresh || [])
-      } else {
-        setPendingRewards(prev => prev.map(r => 
-          r.id === rewardId ? { ...r, status: 'active', activatedAt: new Date().toISOString() } : r
-        ))
-      }
-    } catch (e) {
-      setPendingRewards(prev => prev.map(r => 
-        r.id === rewardId ? { ...r, status: 'active', activatedAt: new Date().toISOString() } : r
-      ))
+    setPendingRewards(prev => prev.map(r => 
+      r.id === rewardId ? { ...r, status: 'active', activatedAt: new Date().toISOString() } : r
+    ))
+    if (data.activatePendingCoupon && member) {
+      data.activatePendingCoupon(member.uid, rewardId).catch(e => console.error('Failed to persist activation', e))
     }
     notify('✅ Reward activated!')
     return { ok: true }
@@ -155,27 +120,11 @@ export function AppProvider({ children }) {
 
   // Mark reward as fully redeemed (used)
   const useReward = useCallback(async (rewardId) => {
-    try {
-      if (data.usePendingCoupon && member) {
-        await data.usePendingCoupon(member.uid, rewardId)
-      }
-    } catch (e) {
-      console.error('Failed to persist use', e)
-    }
-    // Reload from backend
-    try {
-      if (data.getPendingCoupons && member) {
-        const fresh = await data.getPendingCoupons(member.uid)
-        setPendingRewards(fresh || [])
-      } else {
-        setPendingRewards(prev => prev.map(r => 
-          r.id === rewardId ? { ...r, status: 'redeemed', usedAt: new Date().toISOString() } : r
-        ))
-      }
-    } catch (e) {
-      setPendingRewards(prev => prev.map(r => 
-        r.id === rewardId ? { ...r, status: 'redeemed', usedAt: new Date().toISOString() } : r
-      ))
+    setPendingRewards(prev => prev.map(r => 
+      r.id === rewardId ? { ...r, status: 'redeemed', usedAt: new Date().toISOString() } : r
+    ))
+    if (data.usePendingCoupon && member) {
+      data.usePendingCoupon(member.uid, rewardId).catch(e => console.error('Failed to persist use', e))
     }
     notify('✅ Reward redeemed!')
     return { ok: true }
@@ -183,23 +132,9 @@ export function AppProvider({ children }) {
 
   // Remove expired/used rewards
   const removeReward = useCallback(async (rewardId) => {
-    try {
-      if (data.removePendingCoupon && member) {
-        await data.removePendingCoupon(member.uid, rewardId)
-      }
-    } catch (e) {
-      console.error('Failed to persist removal', e)
-    }
-    // Reload from backend
-    try {
-      if (data.getPendingCoupons && member) {
-        const fresh = await data.getPendingCoupons(member.uid)
-        setPendingRewards(fresh || [])
-      } else {
-        setPendingRewards(prev => prev.filter(r => r.id !== rewardId))
-      }
-    } catch (e) {
-      setPendingRewards(prev => prev.filter(r => r.id !== rewardId))
+    setPendingRewards(prev => prev.filter(r => r.id !== rewardId))
+    if (data.removePendingCoupon && member) {
+      data.removePendingCoupon(member.uid, rewardId).catch(e => console.error('Failed to persist removal', e))
     }
   }, [member])
 
