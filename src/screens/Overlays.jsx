@@ -573,9 +573,11 @@ function StreakRewardCard({ reward, onClaim, burst }) {
 }
 
 /* ---------------- My Rewards (Pending) ---------------- */
+const COUPON_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000 // coupons are valid 7 days from purchase
+
 export function MyCoupons() {
-  const { pendingRewards, activateReward, useReward, removeReward, notify, member, setPendingRewards } = useApp()
-  const [filter, setFilter] = useState('all') // all | not_active | active | redeemed
+  const { pendingRewards, useReward, removeReward, notify, member, setPendingRewards } = useApp()
+  const [filter, setFilter] = useState('all') // all | active | redeemed | expired
 
   // On mount, reload pendingRewards from localStorage as a safety net
   useEffect(() => {
@@ -592,20 +594,33 @@ export function MyCoupons() {
     }).catch(() => {})
   }, [member?.uid])
 
-  const filtered = pendingRewards.filter(r => filter === 'all' || r.status === filter)
+  // 7-day expiry: legacy coupons without expiresAt fall back to redeemedAt + 7 days;
+  // legacy 'not_active' coupons are treated as active.
+  const expiryOf = (r) => r.expiresAt || new Date(new Date(r.redeemedAt).getTime() + COUPON_LIFETIME_MS).toISOString()
+  const statusOf = (r) => {
+    if (r.status === 'redeemed') return 'redeemed'
+    if (new Date(expiryOf(r)) < new Date()) return 'expired'
+    return 'active'
+  }
+  const daysLeft = (r) => Math.max(0, Math.ceil((new Date(expiryOf(r)) - new Date()) / (24 * 60 * 60 * 1000)))
+
+  const filtered = pendingRewards.filter(r => filter === 'all' || statusOf(r) === filter)
 
   const statusConfig = {
-    not_active: { label: 'Not Active', color: '#f37021', bg: '#fff4e5', icon: '⏳' },
     active: { label: 'Active', color: '#1e8e4e', bg: '#e7f7ee', icon: '✅' },
     redeemed: { label: 'Redeemed', color: 'var(--muted)', bg: 'var(--surface-c)', icon: '🎉' },
+    expired: { label: 'Expired', color: '#c0392b', bg: '#fdecea', icon: '⌛' },
   }
 
   return (
     <Shell title="My Rewards">
       <div style={{ padding: '8px 20px 0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>
+          <span>ℹ️</span> Purchased coupons stay active for 7 days, then expire automatically.
+        </div>
         {/* Filter tabs */}
         <div className="h-scroll" style={{ marginBottom: 16 }}>
-          {['all', 'not_active', 'active', 'redeemed'].map(f => (
+          {['all', 'active', 'redeemed', 'expired'].map(f => (
             <button key={f} className={`chip ${filter === f ? 'active' : ''}`} onClick={() => setFilter(f)}>
               {f === 'all' ? 'All' : statusConfig[f].label}
             </button>
@@ -621,10 +636,11 @@ export function MyCoupons() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {filtered.map((reward) => {
-              const cfg = statusConfig[reward.status]
-              const isExpired = new Date(reward.expiry) < new Date()
-              const canActivate = reward.status === 'not_active' && !isExpired
-              const canUse = reward.status === 'active'
+              const status = statusOf(reward)
+              const cfg = statusConfig[status]
+              const isExpired = status === 'expired'
+              const canUse = status === 'active'
+              const left = daysLeft(reward)
 
               return (
                 <motion.div key={reward.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
@@ -645,28 +661,28 @@ export function MyCoupons() {
                     <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
                         <div style={{ fontWeight: 800, fontSize: 20, color: 'var(--blue)' }}>{reward.cost.toLocaleString()} pts</div>
-                        {isExpired && <span style={{ fontSize: 11, color: 'var(--error)', fontWeight: 600 }}>Expired</span>}
+                        {canUse && (
+                          <span style={{ fontSize: 12, fontWeight: 700, color: left <= 2 ? '#c0392b' : '#1e8e4e' }}>
+                            ⏱ {left === 1 ? 'Expires today' : `Expires in ${left} days`}
+                          </span>
+                        )}
+                        {isExpired && <span style={{ fontSize: 11, color: 'var(--error)', fontWeight: 600 }}>Expired on {new Date(expiryOf(reward)).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' })}</span>}
                       </div>
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        {canActivate && (
-                          <button onClick={() => activateReward(reward.id)} className="btn" style={{ width: 'auto', padding: '12px 20px', background: 'linear-gradient(135deg, #f37021, #ff9f1c)' }}>
-                            <span style={{ fontSize: 16 }}>⏳</span> Activate at POS
-                          </button>
-                        )}
                         {canUse && (
                           <button onClick={() => useReward(reward.id)} className="btn" style={{ width: 'auto', padding: '12px 20px', background: 'linear-gradient(135deg, #1e8e4e, #27ae60)' }}>
                             <span style={{ fontSize: 16 }}>✅</span> Use at POS
                           </button>
                         )}
-                        {(reward.status === 'redeemed' || isExpired) && (
+                        {(status === 'redeemed' || isExpired) && (
                           <button onClick={() => removeReward(reward.id)} className="btn ghost" style={{ width: 'auto', padding: '12px 20px' }}>
                             <span style={{ fontSize: 16 }}>🗑️</span> Remove
                           </button>
                         )}
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--muted)', borderTop: '1px solid var(--line)', paddingTop: 8 }}>
-                        Redeemed: {new Date(reward.redeemedAt).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' })}
-                        {reward.activatedAt && <span> • Activated: {new Date(reward.activatedAt).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' })}</span>}
+                        Purchased: {new Date(reward.redeemedAt).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        <span> • Valid until: {new Date(expiryOf(reward)).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
                         {reward.usedAt && <span> • Used: {new Date(reward.usedAt).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' })}</span>}
                       </div>
                     </div>

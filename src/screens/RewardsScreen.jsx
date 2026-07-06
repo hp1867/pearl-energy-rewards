@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Star, ArrowRight, CreditCard, Coffee, Fuel, UtensilsCrossed, ShoppingBag, Ticket, Flame } from 'lucide-react'
+import { Star, ArrowRight, CreditCard, Coffee, Fuel, UtensilsCrossed, ShoppingBag, Ticket, Flame, Clock } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { tiers } from '../data/mockData'
 
@@ -98,6 +98,9 @@ export default function RewardsScreen() {
                   <div>
                     <h3 style={{ fontSize: 20, fontWeight: 600, color: 'var(--ink)' }}>{r.title}</h3>
                     <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--primary)', marginTop: 4 }}>{r.cost.toLocaleString()} pts</p>
+                    <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Clock size={12} /> Valid for 7 days after purchase
+                    </p>
                   </div>
                   <button onClick={() => doRedeem(r)}
                     style={{ width: '100%', padding: 12, borderRadius: 12, background: 'linear-gradient(90deg,#0057b8,#0060a9)', color: '#fff', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.2)' }}>

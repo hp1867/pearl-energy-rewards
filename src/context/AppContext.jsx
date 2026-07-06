@@ -80,6 +80,8 @@ export function AppProvider({ children }) {
     }
     
     // Purchased rewards are active immediately — the POS marks them used when scanned.
+    // Coupons stay valid for 7 days from purchase, then expire automatically.
+    const now = new Date()
     const newPendingReward = {
       id: Date.now(),
       rewardId: reward.id,
@@ -89,8 +91,9 @@ export function AppProvider({ children }) {
       img: reward.img,
       color: reward.color,
       status: 'active',
-      redeemedAt: new Date().toISOString(),
-      activatedAt: new Date().toISOString(),
+      redeemedAt: now.toISOString(),
+      activatedAt: now.toISOString(),
+      expiresAt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
     }
     
     // Persist to backend FIRST so localStorage is guaranteed up-to-date
@@ -113,7 +116,7 @@ export function AppProvider({ children }) {
       }).catch(e => console.error('Failed to persist points deduction', e))
     }
     
-    notify(`✅ ${reward.title} is active in My Coupons — auto-applies at POS.`)
+    notify(`✅ ${reward.title} is active in My Coupons — valid for 7 days, auto-applies at POS.`)
     return { ok: true, reward: newPendingReward }
   }, [member, notify])
 
