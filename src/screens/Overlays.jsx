@@ -655,7 +655,7 @@ export function MyCoupons() {
                         )}
                         {canUse && (
                           <button onClick={() => useReward(reward.id)} className="btn" style={{ width: 'auto', padding: '12px 20px', background: 'linear-gradient(135deg, #1e8e4e, #27ae60)' }}>
-                            <span style={{ fontSize: 16 }}>✅</span> Use Reward
+                            <span style={{ fontSize: 16 }}>✅</span> Use at POS
                           </button>
                         )}
                         {(reward.status === 'redeemed' || isExpired) && (

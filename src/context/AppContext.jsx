@@ -79,6 +79,7 @@ export function AppProvider({ children }) {
       return { ok: false, message: `Need ${reward.cost - member.points} more points` }
     }
     
+    // Purchased rewards are active immediately — the POS marks them used when scanned.
     const newPendingReward = {
       id: Date.now(),
       rewardId: reward.id,
@@ -87,9 +88,9 @@ export function AppProvider({ children }) {
       cost: reward.cost,
       img: reward.img,
       color: reward.color,
-      status: 'not_active',
+      status: 'active',
       redeemedAt: new Date().toISOString(),
-      activatedAt: null,
+      activatedAt: new Date().toISOString(),
     }
     
     // Persist to backend FIRST so localStorage is guaranteed up-to-date
@@ -112,7 +113,7 @@ export function AppProvider({ children }) {
       }).catch(e => console.error('Failed to persist points deduction', e))
     }
     
-    notify(`✅ ${reward.title} added to My Rewards. Scan at POS to activate.`)
+    notify(`✅ ${reward.title} is active in My Coupons — auto-applies at POS.`)
     return { ok: true, reward: newPendingReward }
   }, [member, notify])
 

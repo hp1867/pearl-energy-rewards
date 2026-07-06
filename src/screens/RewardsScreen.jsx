@@ -19,7 +19,11 @@ export default function RewardsScreen() {
   const pct = next ? Math.min(100, ((member.points - tier.min) / (next.min - tier.min)) * 100) : 100
   const away = next ? next.min - member.points : 0
 
-  const doRedeem = async (r) => { const ok = await redeemReward(r); if (ok.ok) { setBurst(true); setTimeout(() => setBurst(false), 1400) } }
+  const doRedeem = async (r) => {
+    const res = await redeemReward(r)
+    if (res.ok) { setBurst(true); setTimeout(() => setBurst(false), 1400) }
+    else notify(res.message)
+  }
 
   return (
     <div className="screen">
@@ -115,7 +119,7 @@ export default function RewardsScreen() {
               style={{ background: '#fff', borderRadius: 24, padding: '34px 30px', textAlign: 'center', boxShadow: 'var(--shadow-md)' }}>
               <motion.div animate={{ rotate: [0, -10, 10, 0] }} transition={{ repeat: 2, duration: 0.5 }} style={{ fontSize: 64 }}>🎉</motion.div>
               <h3 style={{ marginTop: 10, fontSize: 20 }}>Reward redeemed!</h3>
-              <p style={{ color: 'var(--muted)', marginTop: 4, fontSize: 14 }}>Saved to your wallet</p>
+              <p style={{ color: 'var(--muted)', marginTop: 4, fontSize: 14 }}>Active in My Coupons — auto-applies at POS</p>
             </motion.div>
             {[...Array(14)].map((_, k) => (
               <motion.div key={k} initial={{ x: 0, y: 0, opacity: 1 }}
