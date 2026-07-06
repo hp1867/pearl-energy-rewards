@@ -109,19 +109,20 @@ export default function HomeScreen() {
             <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 24, padding: 24, background: 'linear-gradient(135deg, #ff6b35 0%, #f7931e 100%)', color: '#fff', boxShadow: '0 16px 44px rgba(255,107,53,0.4)', border: '1px solid rgba(255,255,255,0.2)' }}>
               <div style={{ position: 'absolute', right: -40, top: -40, width: 140, height: 140, background: 'rgba(255,255,255,0.15)', borderRadius: '50%', filter: 'blur(40px)' }} />
               <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, 0.18) 50%, transparent 62%)', pointerEvents: 'none' }} />
-              <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: 180 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
-                  <div>
-                    <div className="label" style={{ color: 'rgba(255,255,255,0.8)' }}>Weekly Streak</div>
-                    <div style={{ fontSize: 48, fontWeight: 700, lineHeight: 1, letterSpacing: '-0.02em' }}>{weeklyFuel} <span style={{ fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,0.8)' }}>refuels</span></div>
-                  </div>
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 12px', borderRadius: 999, background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.35)' }}>
-                    <Target size={13} fill="#fff" color="#fff" />
-                    <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Week {getWeekNumber()}</span>
+              <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+                <div>
+                  <div className="label" style={{ color: 'rgba(255,255,255,0.8)' }}>Weekly Streak</div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginTop: 4 }}>
+                    <span style={{ fontSize: 48, fontWeight: 700, lineHeight: 1, letterSpacing: '-0.02em', color: '#fff' }}>{weeklyFuel}</span>
+                    <span style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,0.8)' }}>refuels</span>
                   </div>
                 </div>
-                
-                {/* Weekly progress */}
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 12px', borderRadius: 999, background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.35)' }}>
+                  <Target size={13} fill="#fff" color="#fff" />
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Week {getWeekNumber()}</span>
+                </div>
+              </div>
+              <div style={{ position: 'relative', zIndex: 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                   <span style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,0.8)' }}>Progress to next reward</span>
                   <span style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>{nextWeeklyReward ? nextWeeklyReward.reward.label : 'Max rewards earned'}</span>
