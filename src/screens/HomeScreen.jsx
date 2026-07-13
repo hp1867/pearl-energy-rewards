@@ -1,11 +1,13 @@
-import { motion } from 'framer-motion'
-import { CreditCard, Star, MapPin, ArrowUpRight, Zap, Cookie, Droplet, Navigation, Target, Tag } from 'lucide-react'
+import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { CreditCard, Star, MapPin, ArrowUpRight, Zap, Cookie, Droplet, Navigation, Target, Tag, X } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import Card3D from '../components/Card3D'
 import MapView from '../components/MapView'
 import { integrations } from '../config/integrations'
 import { tierTheme } from '../theme/tiers'
 import { hotDeals, tiers } from '../data/mockData'
+import { MISSION_TARGET, MISSION_PRIZES } from '../services/localProvider'
 
 const greeting = () => {
   const h = new Date().getHours()
@@ -32,12 +34,14 @@ export default function HomeScreen() {
   const away = next ? next.min - member.points : 0
   const th = tierTheme(member.tier)
 
-  // 2-week Fuel Mission: fill up 4 times → bonus reward. Points stay hidden
-  // until the target is hit — customers chase the segments, not the numbers.
-  const MISSION_TARGET = 4
+  // 2-week Fuel Mission: fill up 4 times → a mystery prize, drawn at random on
+  // completion. The prize stays secret until the target is hit — customers
+  // chase the segments, not the numbers.
   const missionCount = Math.min(member.missionCount ?? 0, MISSION_TARGET)
   const missionDone = missionCount >= MISSION_TARGET
   const missionLeft = MISSION_TARGET - missionCount
+  const missionPrize = member.missionPrize
+  const [showMissionInfo, setShowMissionInfo] = useState(false)
 
   return (
     <div className="screen">
@@ -100,7 +104,7 @@ export default function HomeScreen() {
         {/* Fuel Mission Card — 4 fill-ups in 2 weeks, chased as a segmented target.
             Same dimensions as the Points card; points reveal only on completion. */}
         <div style={{ padding: '0 20px', marginTop: 14 }}>
-          <Card3D intensity={6} glare>
+          <Card3D intensity={6} glare onClick={() => setShowMissionInfo(true)}>
             <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 24, padding: 24, background: 'linear-gradient(135deg, #ff6b35 0%, #f7931e 100%)', color: '#fff', boxShadow: '0 16px 44px rgba(255,107,53,0.4)', border: '1px solid rgba(255,255,255,0.2)' }}>
               <div style={{ position: 'absolute', right: -40, top: -40, width: 140, height: 140, background: 'rgba(255,255,255,0.15)', borderRadius: '50%', filter: 'blur(40px)' }} />
               <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, 0.18) 50%, transparent 62%)', pointerEvents: 'none' }} />
@@ -137,8 +141,8 @@ export default function HomeScreen() {
                 </div>
                 <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.9)', marginTop: 8, textAlign: 'center', fontWeight: missionDone ? 700 : 500 }}>
                   {missionDone
-                    ? `🏆 Mission complete! +200 bonus points added — balance ${member.points.toLocaleString()} pts`
-                    : `🎁 ${missionLeft} more fill-up${missionLeft === 1 ? '' : 's'} to unlock your mystery reward`}
+                    ? `🏆 Mission complete! Your surprise: ${missionPrize ? `${missionPrize.img} ${missionPrize.label}` : '🎁 mystery prize unlocked'}`
+                    : `🎁 ${missionLeft} more fill-up${missionLeft === 1 ? '' : 's'} to unlock a surprise prize · tap for details`}
                 </p>
               </div>
             </div>
@@ -241,6 +245,53 @@ export default function HomeScreen() {
           </div>
         </div>
       </div>
+
+      {/* How the Fuel Mission works — popup with the mystery prize pool */}
+      <AnimatePresence>
+        {showMissionInfo && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowMissionInfo(false)}
+            style={{ position: 'absolute', inset: 0, zIndex: 80, display: 'grid', placeItems: 'center', background: 'rgba(8,22,48,.45)', backdropFilter: 'blur(4px)', padding: 24 }}>
+            <motion.div initial={{ scale: 0.85, y: 24 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0 }} transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{ background: '#fff', borderRadius: 24, padding: 24, width: '100%', maxWidth: 340, maxHeight: '80%', overflowY: 'auto', boxShadow: 'var(--shadow-md)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                <h3 style={{ fontSize: 19, fontWeight: 800, color: 'var(--ink)' }}>🎯 Fuel Mission</h3>
+                <button onClick={() => setShowMissionInfo(false)} style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--surface-low)', display: 'grid', placeItems: 'center', color: 'var(--muted)' }}><X size={16} /></button>
+              </div>
+
+              {[
+                ['⛽', `Fill up ${MISSION_TARGET} times at any Pearl Energy station within 2 weeks.`],
+                ['🔋', 'Every fill-up lights one segment on your mission card.'],
+                ['🎁', 'Light all 4 — a surprise prize is unlocked instantly.'],
+              ].map(([icon, text], i) => (
+                <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 10 }}>
+                  <div style={{ width: 34, height: 34, borderRadius: 10, background: 'linear-gradient(135deg, #ff6b3522, #f7931e22)', display: 'grid', placeItems: 'center', fontSize: 16, flexShrink: 0 }}>{icon}</div>
+                  <p style={{ fontSize: 13.5, color: 'var(--ink-soft)', lineHeight: 1.45, paddingTop: 7 }}>{text}</p>
+                </div>
+              ))}
+
+              <div style={{ marginTop: 16, padding: 14, borderRadius: 16, background: 'linear-gradient(135deg, #fff4e5, #ffe9d6)', border: '1px solid #ffd9b3' }}>
+                <div style={{ fontSize: 12, fontWeight: 800, color: '#b9742f', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>One of these will be yours</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {MISSION_PRIZES.map((p) => (
+                    <span key={p.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 999, background: '#fff', border: '1px solid #ffd9b3', fontSize: 12, fontWeight: 700, color: 'var(--ink)' }}>
+                      {p.img} {p.label}
+                    </span>
+                  ))}
+                </div>
+                <p style={{ fontSize: 12, color: '#b9742f', marginTop: 10, lineHeight: 1.45 }}>
+                  🤫 Which one? That's the surprise — your prize is drawn at random and revealed only the moment you complete the mission.
+                </p>
+              </div>
+
+              <button onClick={() => setShowMissionInfo(false)}
+                style={{ width: '100%', marginTop: 16, padding: 14, borderRadius: 14, background: 'linear-gradient(135deg, #ff6b35, #f7931e)', color: '#fff', fontWeight: 800, fontSize: 14, boxShadow: '0 8px 24px rgba(255,107,53,0.35)' }}>
+                Challenge accepted 🔥
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

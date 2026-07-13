@@ -44,27 +44,58 @@ function syncDerived(c) {
 }
 
 // 2-week Fuel Mission: fill up MISSION_TARGET times within MISSION_WINDOW_DAYS
-// of the first fill-up → MISSION_BONUS points, awarded once per window.
+// of the first fill-up → a MYSTERY prize, drawn at random on completion.
 export const MISSION_TARGET = 4
 const MISSION_WINDOW_DAYS = 14
-const MISSION_BONUS = 200
+
+// The prize pool shown in the "how it works" popup. Weights set rarity —
+// which prize the customer actually gets stays secret until they finish.
+export const MISSION_PRIZES = [
+  { type: 'points', value: 100, label: '100 Bonus Points', img: '⭐', weight: 40 },
+  { type: 'points', value: 200, label: '200 Bonus Points', img: '⚡', weight: 30 },
+  { type: 'points', value: 500, label: '500 Bonus Points', img: '💎', weight: 10 },
+  { type: 'coupon', label: 'Free Regular Coffee', img: '☕', color: '#7a4a2b', weight: 15 },
+  { type: 'coupon', label: 'Free Car Wash', img: '🚗', color: '#3498db', weight: 5 },
+]
+
+function drawMissionPrize() {
+  const total = MISSION_PRIZES.reduce((s, p) => s + p.weight, 0)
+  let roll = Math.random() * total
+  for (const p of MISSION_PRIZES) { roll -= p.weight; if (roll <= 0) return p }
+  return MISSION_PRIZES[0]
+}
 
 function updateMission(c, todayStr) {
   const start = c.missionStart ? new Date(c.missionStart) : null
   const expired = !start || (new Date(todayStr) - start) / 86400000 >= MISSION_WINDOW_DAYS
-  if (expired) { c.missionStart = todayStr; c.missionCount = 0; c.missionRewarded = false }
+  if (expired) { c.missionStart = todayStr; c.missionCount = 0; c.missionRewarded = false; c.missionPrize = null }
   c.missionCount = (c.missionCount || 0) + 1
   if (c.missionCount >= MISSION_TARGET && !c.missionRewarded) {
     c.missionRewarded = true
-    c.points += MISSION_BONUS
-    c.lifetimePoints += MISSION_BONUS
-    c.transactions = [{
-      id: Date.now() + 1, store: 'Fuel Mission', date: todayStr, amount: 0,
-      points: MISSION_BONUS, type: `Mission complete: ${MISSION_TARGET} fill-ups in 2 weeks`,
-    }, ...(c.transactions || [])]
-    return MISSION_BONUS
+    const prize = drawMissionPrize()
+    c.missionPrize = { type: prize.type, value: prize.value || 0, label: prize.label, img: prize.img, at: todayStr }
+    if (prize.type === 'points') {
+      c.points += prize.value
+      c.lifetimePoints += prize.value
+      c.transactions = [{
+        id: Date.now() + 1, store: 'Fuel Mission', date: todayStr, amount: 0,
+        points: prize.value, type: `Mission prize: ${prize.label}`,
+      }, ...(c.transactions || [])]
+    } else {
+      // Item prize → drop a ready-to-use coupon into My Coupons (7-day validity)
+      const now = new Date()
+      const coupons = read(K.pendingCoupons, [])
+      coupons.push({
+        id: Date.now() + 1, uid: c.uid, rewardId: 'mission_prize', title: prize.label,
+        cat: 'Mission Prize', cost: 0, img: prize.img, color: prize.color || '#f7931e',
+        status: 'active', redeemedAt: now.toISOString(), activatedAt: now.toISOString(),
+        expiresAt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(), createdAt: Date.now(),
+      })
+      saveCollection(K.pendingCoupons, coupons)
+    }
+    return prize
   }
-  return 0
+  return null
 }
 
 // generic live collection subscribe (same-tab + cross-tab)
@@ -137,8 +168,8 @@ export function createLocalProvider() {
       const litres = purchaseData.litres || 0
       const points = Math.floor(amount) // 1 point per dollar
 
-      // Advance the 2-week fuel mission (may award bonus points)
-      const missionBonus = updateMission(c, today)
+      // Advance the 2-week fuel mission (may draw and award a mystery prize)
+      const missionPrize = updateMission(c, today)
 
       // Add points
       c.points += points
@@ -157,7 +188,7 @@ export function createLocalProvider() {
 
       syncDerived(c); saveCustomers(customers)
 
-      return { ok: true, customer: c, pointsEarned: points, missionBonus, missionCount: c.missionCount }
+      return { ok: true, customer: c, pointsEarned: points, missionPrize, missionCount: c.missionCount }
     },
 
     subscribeOffers(cb) { return subscribeKey(K.offers, cb) },
