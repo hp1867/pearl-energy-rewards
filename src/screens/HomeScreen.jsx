@@ -28,10 +28,13 @@ export default function HomeScreen() {
   const fx = (s) => ((s.lng - minLng) / ((maxLng - minLng) || 1)) * 80 + 10
   const fy = (s) => (1 - (s.lat - minLat) / ((maxLat - minLat) || 1)) * 62 + 18
 
-  const tier = tiers.find((t) => t.name === member.tier)
-  const next = tiers[tiers.findIndex((t) => t.name === member.tier) + 1]
-  const pct = next ? Math.min(100, ((member.points - tier.min) / (next.min - tier.min)) * 100) : 100
-  const away = next ? next.min - member.points : 0
+  // Tier progress runs on LIFETIME points (tier never goes down when you spend)
+  const tierIdx = Math.max(0, tiers.findIndex((t) => t.name === member.tier))
+  const tier = tiers[tierIdx]
+  const next = tiers[tierIdx + 1]
+  const lifetime = member.lifetimePoints ?? member.points
+  const pct = next ? Math.min(100, ((lifetime - tier.min) / (next.min - tier.min)) * 100) : 100
+  const away = next ? Math.max(0, next.min - lifetime) : 0
   const th = tierTheme(member.tier)
 
   // 2-week Fuel Mission: fill up 4 times → a mystery prize, drawn at random on
@@ -81,10 +84,11 @@ export default function HomeScreen() {
                     <span style={{ fontSize: 12, fontWeight: 500, color: th.sub }}>pts</span>
                   </div>
                 </div>
-                <div className={th.shimmer ? 'gold-shimmer' : ''} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 12px', borderRadius: 999, ...th.badge }}>
+                <button onClick={(e) => { e.stopPropagation(); setOverlay('tiers') }} className={th.shimmer ? 'gold-shimmer' : ''}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 12px', borderRadius: 999, ...th.badge }}>
                   <Star size={13} fill={th.badge.color} color={th.badge.color} />
                   <span style={{ fontSize: 12, fontWeight: 700, color: th.badge.color, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{member.tier} Member</span>
-                </div>
+                </button>
               </div>
               <div style={{ position: 'relative', zIndex: 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -95,7 +99,7 @@ export default function HomeScreen() {
                   <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 1, ease: 'easeOut' }}
                     style={{ height: '100%', borderRadius: 999, background: th.fill }} />
                 </div>
-                <p style={{ fontSize: 12, color: th.sub, marginTop: 8, textAlign: 'center' }}>{next ? `${away.toLocaleString()} points away from next tier` : 'Top tier unlocked 🏆'}</p>
+                <p style={{ fontSize: 12, color: th.sub, marginTop: 8, textAlign: 'center' }}>{next ? `${away.toLocaleString()} lifetime pts to ${next.name} · tap your badge to see all tiers` : 'Immortal — the top tier. You are a legend 👑'}</p>
               </div>
             </div>
           </Card3D>
@@ -105,7 +109,7 @@ export default function HomeScreen() {
             Same dimensions as the Points card; points reveal only on completion. */}
         <div style={{ padding: '0 20px', marginTop: 14 }}>
           <Card3D intensity={6} glare onClick={() => setShowMissionInfo(true)}>
-            <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 24, padding: 24, background: 'linear-gradient(135deg, #ff6b35 0%, #f7931e 100%)', color: '#fff', boxShadow: '0 16px 44px rgba(255,107,53,0.4)', border: '1px solid rgba(255,255,255,0.2)' }}>
+            <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 24, padding: 24, background: 'linear-gradient(135deg, #065f56 0%, #0d9488 55%, #2dd4bf 100%)', color: '#fff', boxShadow: '0 16px 44px rgba(13,148,136,0.38)', border: '1px solid rgba(255,255,255,0.2)' }}>
               <div style={{ position: 'absolute', right: -40, top: -40, width: 140, height: 140, background: 'rgba(255,255,255,0.15)', borderRadius: '50%', filter: 'blur(40px)' }} />
               <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, 0.18) 50%, transparent 62%)', pointerEvents: 'none' }} />
               <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
@@ -265,27 +269,27 @@ export default function HomeScreen() {
                 ['🎁', 'Light all 4 — a surprise prize is unlocked instantly.'],
               ].map(([icon, text], i) => (
                 <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 10 }}>
-                  <div style={{ width: 34, height: 34, borderRadius: 10, background: 'linear-gradient(135deg, #ff6b3522, #f7931e22)', display: 'grid', placeItems: 'center', fontSize: 16, flexShrink: 0 }}>{icon}</div>
+                  <div style={{ width: 34, height: 34, borderRadius: 10, background: 'linear-gradient(135deg, #0d948822, #2dd4bf22)', display: 'grid', placeItems: 'center', fontSize: 16, flexShrink: 0 }}>{icon}</div>
                   <p style={{ fontSize: 13.5, color: 'var(--ink-soft)', lineHeight: 1.45, paddingTop: 7 }}>{text}</p>
                 </div>
               ))}
 
-              <div style={{ marginTop: 16, padding: 14, borderRadius: 16, background: 'linear-gradient(135deg, #fff4e5, #ffe9d6)', border: '1px solid #ffd9b3' }}>
-                <div style={{ fontSize: 12, fontWeight: 800, color: '#b9742f', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>One of these will be yours</div>
+              <div style={{ marginTop: 16, padding: 14, borderRadius: 16, background: 'linear-gradient(135deg, #e6fffa, #d2f5ee)', border: '1px solid #a7e3d6' }}>
+                <div style={{ fontSize: 12, fontWeight: 800, color: '#0f766e', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>One of these will be yours</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {MISSION_PRIZES.map((p) => (
-                    <span key={p.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 999, background: '#fff', border: '1px solid #ffd9b3', fontSize: 12, fontWeight: 700, color: 'var(--ink)' }}>
+                    <span key={p.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 999, background: '#fff', border: '1px solid #a7e3d6', fontSize: 12, fontWeight: 700, color: 'var(--ink)' }}>
                       {p.img} {p.label}
                     </span>
                   ))}
                 </div>
-                <p style={{ fontSize: 12, color: '#b9742f', marginTop: 10, lineHeight: 1.45 }}>
+                <p style={{ fontSize: 12, color: '#0f766e', marginTop: 10, lineHeight: 1.45 }}>
                   🤫 Which one? That's the surprise — your prize is drawn at random and revealed only the moment you complete the mission.
                 </p>
               </div>
 
               <button onClick={() => setShowMissionInfo(false)}
-                style={{ width: '100%', marginTop: 16, padding: 14, borderRadius: 14, background: 'linear-gradient(135deg, #ff6b35, #f7931e)', color: '#fff', fontWeight: 800, fontSize: 14, boxShadow: '0 8px 24px rgba(255,107,53,0.35)' }}>
+                style={{ width: '100%', marginTop: 16, padding: 14, borderRadius: 14, background: 'linear-gradient(135deg, #0d9488, #2dd4bf)', color: '#fff', fontWeight: 800, fontSize: 14, boxShadow: '0 8px 24px rgba(13,148,136,0.35)' }}>
                 Challenge accepted 🔥
               </button>
             </motion.div>

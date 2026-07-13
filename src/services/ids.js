@@ -17,9 +17,11 @@ export function buildQrData(membershipId, customerNumber, points = 0) {
 }
 
 // Tier is derived from lifetime points so it can never drift out of sync.
+// Ladder: Blue → Silver → Gold → Diamond → Immortal.
 export function tierForPoints(lifetimePoints) {
-  if (lifetimePoints >= 4000) return 'Platinum'
-  if (lifetimePoints >= 1500) return 'Gold'
+  if (lifetimePoints >= 10000) return 'Immortal'
+  if (lifetimePoints >= 5000) return 'Diamond'
+  if (lifetimePoints >= 2500) return 'Gold'
   if (lifetimePoints >= 1000) return 'Silver'
   return 'Blue'
 }

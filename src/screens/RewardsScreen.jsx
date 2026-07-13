@@ -15,10 +15,13 @@ export default function RewardsScreen() {
   const cats = ['All', ...new Set(rewards.map((r) => r.cat))]
   const list = cat === 'All' ? rewards : rewards.filter((r) => r.cat === cat)
 
-  const tier = tiers.find((t) => t.name === member.tier)
-  const next = tiers[tiers.findIndex((t) => t.name === member.tier) + 1]
-  const pct = next ? Math.min(100, ((member.points - tier.min) / (next.min - tier.min)) * 100) : 100
-  const away = next ? next.min - member.points : 0
+  // Tier progress runs on LIFETIME points (tier never goes down when you spend)
+  const tierIdx = Math.max(0, tiers.findIndex((t) => t.name === member.tier))
+  const tier = tiers[tierIdx]
+  const next = tiers[tierIdx + 1]
+  const lifetime = member.lifetimePoints ?? member.points
+  const pct = next ? Math.min(100, ((lifetime - tier.min) / (next.min - tier.min)) * 100) : 100
+  const away = next ? Math.max(0, next.min - lifetime) : 0
   const th = tierTheme(member.tier) // balance card follows the tier colour, same as the home card
 
   const doRedeem = async (r) => {
@@ -56,10 +59,10 @@ export default function RewardsScreen() {
                     <span style={{ fontSize: 18, color: th.sub }}>pts</span>
                   </div>
                 </div>
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 999, ...th.badge }}>
+                <button onClick={() => setOverlay('tiers')} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 999, ...th.badge }}>
                   <Star size={13} fill={th.badge.color} color={th.badge.color} />
                   <span style={{ fontSize: 12, fontWeight: 600, color: th.badge.color }}>{member.tier} Tier</span>
-                </div>
+                </button>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', color: th.sub }}>

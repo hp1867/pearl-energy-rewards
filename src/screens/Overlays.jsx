@@ -14,7 +14,8 @@ import { integrations } from '../config/integrations'
 import { enablePush } from '../firebase/messaging'
 import { addToWallet } from '../services/wallet'
 import { data } from '../services/data'
-import { amenityFilters, transactions, stationFuelRows } from '../data/mockData'
+import { amenityFilters, transactions, stationFuelRows, tiers } from '../data/mockData'
+import { tierTheme } from '../theme/tiers'
 
 const AMENITY_ICON = { Coffee, 'Car Wash': Car, ATM: Banknote, 'Hot Food': UtensilsCrossed, 'EV Charging': Zap }
 
@@ -531,12 +532,86 @@ export function EditProfile() {
   )
 }
 
+/* ---------------- Membership Tiers ---------------- */
+export function TiersInfo() {
+  const { member } = useApp()
+  const lifetime = member.lifetimePoints ?? member.points
+  const currentIdx = Math.max(0, tiers.findIndex((t) => t.name === member.tier))
+  const current = tiers[currentIdx]
+  const next = tiers[currentIdx + 1]
+  const pct = next ? Math.min(100, ((lifetime - current.min) / (next.min - current.min)) * 100) : 100
+  const th = tierTheme(member.tier)
+
+  return (
+    <Shell title="Membership Tiers">
+      <div style={{ padding: '8px 20px 0' }}>
+        {/* where you stand */}
+        <div style={{ background: th.card, borderRadius: 20, padding: 20, boxShadow: `0 12px 34px ${th.glow}`, border: '1px solid rgba(255,255,255,0.25)', marginBottom: 18 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 34 }}>{current.icon}</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: th.sub }}>Your tier · {currentIdx + 1} of {tiers.length}</div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: th.text }}>{current.name} Member</div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 18, fontWeight: 800, color: th.text }}>{lifetime.toLocaleString()}</div>
+              <div style={{ fontSize: 11, color: th.sub }}>lifetime pts</div>
+            </div>
+          </div>
+          <div style={{ marginTop: 14 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+              <span style={{ fontSize: 12, color: th.sub }}>{next ? `Next: ${next.icon} ${next.name}` : 'Top of the ladder'}</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: th.text }}>{next ? `${Math.max(0, next.min - lifetime).toLocaleString()} pts to go` : '👑 Max tier'}</span>
+            </div>
+            <div style={{ height: 8, background: th.track, borderRadius: 999, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${pct}%`, background: th.fill, borderRadius: 999, transition: 'width 0.6s ease' }} />
+            </div>
+          </div>
+        </div>
+
+        <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 14, lineHeight: 1.5 }}>
+          Tiers are earned with <b>lifetime points</b> — spending points on rewards never drops your tier.
+        </p>
+
+        {/* the full ladder */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {tiers.map((t, i) => {
+            const thm = tierTheme(t.name)
+            const state = i === currentIdx ? 'current' : i < currentIdx ? 'done' : 'locked'
+            return (
+              <div key={t.name} style={{ borderRadius: 18, overflow: 'hidden', boxShadow: state === 'current' ? `0 10px 30px ${thm.glow}` : 'var(--shadow-sm)', border: state === 'current' ? '2px solid rgba(0,87,184,0.35)' : '1px solid rgba(226,226,229,0.5)', opacity: state === 'locked' ? 0.92 : 1 }}>
+                <div style={{ background: thm.card, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 22 }}>{t.icon}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: thm.text }}>{t.name}</div>
+                    <div style={{ fontSize: 11.5, color: thm.sub }}>{t.min === 0 ? 'Everyone starts here' : `From ${t.min.toLocaleString()} lifetime pts`}</div>
+                  </div>
+                  <span style={{ fontSize: 11, fontWeight: 800, padding: '5px 10px', borderRadius: 999, ...thm.badge }}>
+                    {state === 'current' ? '★ You are here' : state === 'done' ? '✓ Unlocked' : `🔒 ${(t.min - lifetime).toLocaleString()} pts away`}
+                  </span>
+                </div>
+                <div style={{ background: '#fff', padding: '12px 16px' }}>
+                  {t.perks.map((p) => (
+                    <div key={p} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '3px 0', fontSize: 13, color: 'var(--ink-soft)' }}>
+                      <span style={{ color: t.color, fontWeight: 800 }}>•</span> {p}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </Shell>
+  )
+}
+
 /* ---------------- Help & Support ---------------- */
 const FAQS = [
   { q: 'How do I earn points?', a: 'You earn 1 point for every $1 spent on fuel and in-store purchases at any Pearl Energy station. Scan your membership card (or the QR in this app) at the counter before paying.' },
   { q: 'How long do purchased coupons last?', a: 'Coupons purchased with points stay active for 7 days from the moment you redeem them, then expire automatically. The exact expiry date is shown on every coupon in My Coupons.' },
   { q: 'What is the Fuel Mission?', a: 'Fill up 4 times at any Pearl Energy station within 2 weeks and a surprise prize is unlocked instantly — bonus points, a free coffee, or a free car wash. The prize is drawn at random when you finish.' },
-  { q: 'How do membership tiers work?', a: 'Tiers are based on lifetime points: Blue (0+), Silver (1,000+), Gold (1,500+), Platinum (4,000+). Higher tiers earn points faster and unlock extra perks.' },
+  { q: 'How do membership tiers work?', a: 'Tiers are based on lifetime points and never go down: Blue (0+), Silver (1,000+), Gold (2,500+), Diamond (5,000+), Immortal (10,000+). Higher tiers earn points faster and unlock bigger perks — tap your tier badge on the home screen to see the full ladder.' },
   { q: 'How do offers get applied?', a: 'General offers on the Offers tab are automatic — just scan your card at the register and any eligible offer is applied at the POS. No need to redeem anything.' },
 ]
 

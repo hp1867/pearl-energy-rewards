@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import {
-  Receipt, Gift, CreditCard, Bell, HelpCircle, LogOut, ChevronRight, Pencil,
+  Receipt, Gift, CreditCard, Bell, HelpCircle, LogOut, ChevronRight, Pencil, Star,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { Header } from './OffersScreen'
@@ -14,6 +14,7 @@ export default function ProfileScreen() {
   const { member, logout, setOverlay } = useApp()
 
   const rows = [
+    { icon: Star, label: 'Membership Tiers', go: () => setOverlay('tiers') },
     { icon: Receipt, label: 'Transaction History', go: () => setOverlay('receipts') },
     { icon: Gift, label: 'Reward History', go: () => setOverlay('coupons') },
     { icon: CreditCard, label: 'Saved Wallet Card', go: () => setOverlay('wallet') },

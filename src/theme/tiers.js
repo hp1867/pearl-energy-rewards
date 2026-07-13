@@ -28,14 +28,23 @@ export const TIER_THEME = {
     track: 'rgba(0,0,0,0.14)', fill: '#5a4413',
     button: 'linear-gradient(135deg,#caa14a,#f6e09a)', buttonText: '#3a2c08',
   },
-  Platinum: {
+  Diamond: {
+    dark: false, shimmer: false,
+    card: 'linear-gradient(150deg,#0f6db8 0%,#8fd3f4 40%,#e8f9ff 62%,#2b86c5 100%)',
+    text: '#08344f', sub: 'rgba(8,52,79,0.72)',
+    badge: { background: 'rgba(255,255,255,0.55)', color: '#0b4a73', border: '1px solid rgba(255,255,255,0.75)' },
+    accent: 'rgba(255,255,255,0.55)', glow: 'rgba(64,164,223,0.5)',
+    track: 'rgba(0,0,0,0.12)', fill: '#0b4a73',
+    button: 'linear-gradient(135deg,#36a3e0,#8fd3f4)', buttonText: '#08344f',
+  },
+  Immortal: {
     dark: true, shimmer: false,
-    card: 'linear-gradient(150deg,#262d3c 0%,#8a96ac 47%,#1d2431 100%)',
-    text: '#ffffff', sub: 'rgba(255,255,255,0.78)',
+    card: 'linear-gradient(150deg,#12081f 0%,#5b21b6 45%,#a855f7 68%,#1a0b2e 100%)',
+    text: '#ffffff', sub: 'rgba(255,255,255,0.8)',
     badge: { background: 'rgba(255,255,255,0.22)', color: '#fff', border: '1px solid rgba(255,255,255,0.4)' },
-    accent: 'rgba(255,255,255,0.25)', glow: 'rgba(60,72,94,0.5)',
+    accent: 'rgba(168,85,247,0.45)', glow: 'rgba(124,45,214,0.55)',
     track: 'rgba(255,255,255,0.22)', fill: '#ffffff',
-    button: 'linear-gradient(135deg,#3c485e,#8a96ac)', buttonText: '#ffffff',
+    button: 'linear-gradient(135deg,#7c3aed,#a855f7)', buttonText: '#ffffff',
   },
 }
 

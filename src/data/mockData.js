@@ -10,7 +10,7 @@ export const member = {
   mobile: '+61 412 880 219',
   dob: '1994-07-12',
   points: 1840,
-  tier: 'Gold',
+  tier: 'Diamond',
   joined: 'Mar 2024',
   lifetimePoints: 9120,
   // 2-week Fuel Mission (4 fill-ups → bonus)
@@ -19,11 +19,28 @@ export const member = {
   missionRewarded: false,
 }
 
+// Membership ladder — tier is earned with LIFETIME points and never goes down.
 export const tiers = [
-  { name: 'Blue', min: 0, color: '#0057B8', perk: '1x points' },
-  { name: 'Silver', min: 1000, color: '#8a99b3', perk: '1.25x points + free coffee monthly' },
-  { name: 'Gold', min: 1500, color: '#caa14a', perk: '1.5x points + fuel discounts' },
-  { name: 'Platinum', min: 4000, color: '#5b6b85', perk: '2x points + priority offers' },
+  {
+    name: 'Blue', min: 0, color: '#0057B8', icon: '🔵', perk: '1x points on every purchase',
+    perks: ['1 point per $1 on fuel & shop', 'Member-only fuel prices', 'Birthday bonus points'],
+  },
+  {
+    name: 'Silver', min: 1000, color: '#8a99b3', icon: '🥈', perk: '1.25x points + monthly coffee',
+    perks: ['1.25 points per $1', 'Free regular coffee every month', 'Early access to new offers'],
+  },
+  {
+    name: 'Gold', min: 2500, color: '#caa14a', icon: '🥇', perk: '1.5x points + fuel discounts',
+    perks: ['1.5 points per $1', '4¢/L off every fill-up', 'Free coffee every fortnight', 'Priority support'],
+  },
+  {
+    name: 'Diamond', min: 5000, color: '#36a3e0', icon: '💎', perk: '2x points + monthly car wash',
+    perks: ['2 points per $1', '6¢/L off every fill-up', 'Free car wash every month', 'Exclusive partner rewards'],
+  },
+  {
+    name: 'Immortal', min: 10000, color: '#7c3aed', icon: '👑', perk: '3x points + VIP everything',
+    perks: ['3 points per $1', '8¢/L off every fill-up', 'Free coffee any day', 'VIP events & product launches', 'Dedicated support line'],
+  },
 ]
 
 export const offers = [
