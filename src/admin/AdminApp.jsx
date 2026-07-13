@@ -7,7 +7,11 @@ import { data, DATA_MODE } from '../services/data'
 import { readiness } from '../config/integrations'
 import { menuGroups } from '../data/mockData'
 
-const ADMIN_PASSWORD = 'pearl-admin' // demo gate — production uses Firebase custom claims (admin:true)
+// Demo gate only — set VITE_ADMIN_PASSWORD in .env to change it. Any client-side
+// password is readable in the JS bundle, so it is NOT real security: in Firebase
+// mode the actual protection is the firestore.rules admin custom claim
+// (setCustomUserClaims(uid, { admin: true })), which gates every write server-side.
+const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'pearl-admin'
 
 const SECTIONS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },

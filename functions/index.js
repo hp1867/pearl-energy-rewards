@@ -12,9 +12,18 @@ import cors from 'cors'
 import { onRequest } from 'firebase-functions/v2/https'
 
 const app = express()
+// SECURITY: replace origin:true with your real app domain(s) before go-live,
+// e.g. cors({ origin: ['https://rewards.pearlenergy.com.au'] })
 app.use(cors({ origin: true }))
 app.use(express.json())
 
+// SECURITY: before implementing the pass generators below, verify the caller's
+// Firebase ID token and make sure it matches the requested membership — otherwise
+// anyone could mint wallet passes for other customers' membership IDs:
+//   const idToken = req.headers.authorization?.replace('Bearer ', '')
+//   const decoded = await getAuth().verifyIdToken(idToken)
+//   const snap = await getFirestore().doc(`customers/${decoded.uid}`).get()
+//   if (snap.data()?.membershipId !== req.body.membershipId) return res.status(403).end()
 function requireFields(body, res) {
   if (!body?.membershipId || !body?.customerNumber) {
     res.status(400).json({ error: 'membershipId and customerNumber are required' })

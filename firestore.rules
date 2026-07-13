@@ -2,19 +2,49 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // A customer can read & write only their own record.
-    match /customers/{uid} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+    function signedIn() { return request.auth != null; }
+    function isAdmin()  { return signedIn() && request.auth.token.admin == true; }
+    function isStaff()  { return signedIn() && request.auth.token.staff == true; }
 
-      // Staff/admins (custom claim `staff: true`) can read any customer —
-      // this powers the "Customer Lookup" feature.
-      allow read: if request.auth != null && request.auth.token.staff == true;
+    // ---------------- Customer records ----------------
+    match /customers/{uid} {
+      // Customers read their own record; staff/admins read any
+      // (powers the Customer Lookup feature).
+      allow read: if signedIn() && (request.auth.uid == uid || isStaff() || isAdmin());
+
+      // Signup: a user may create their own record, starting at zero points.
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.resource.data.uid == uid
+        && request.resource.data.points == 0
+        && request.resource.data.lifetimePoints == 0;
+
+      // Self-service updates may never INCREASE the balance or touch
+      // identity / tier fields. Points are only ever added by the POS or an
+      // admin session — this blocks customers from awarding themselves
+      // points by calling the Firestore API directly. Redemptions (which
+      // only deduct points) still work from the app.
+      allow update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.points <= resource.data.points
+        && request.resource.data.lifetimePoints == resource.data.lifetimePoints
+        && request.resource.data.tier == resource.data.tier
+        && request.resource.data.customerNumber == resource.data.customerNumber
+        && request.resource.data.membershipId == resource.data.membershipId
+        && request.resource.data.uid == resource.data.uid;
+
+      // Admins (POS backend / admin dashboard) have full write access,
+      // including adding points. Set the claim with the Admin SDK:
+      // setCustomUserClaims(uid, { admin: true })
+      allow write: if isAdmin();
     }
 
-    // Live catalogs: anyone signed in can read; only admins can write.
-    // Set the admin claim with the Admin SDK: setCustomUserClaims(uid, { admin: true })
-    match /offers/{id}      { allow read: if request.auth != null; allow write: if request.auth.token.admin == true; }
-    match /rewards/{id}     { allow read: if request.auth != null; allow write: if request.auth.token.admin == true; }
-    match /fuelPrices/{id}  { allow read: if request.auth != null; allow write: if request.auth.token.admin == true; }
+    // ---------------- Live catalogs ----------------
+    // Anyone signed in can read; only admins can write.
+    match /offers/{id}        { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /rewards/{id}       { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /fuelPrices/{id}    { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /menu/{id}          { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /categories/{id}    { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /stations/{id}      { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /notifications/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
   }
 }
