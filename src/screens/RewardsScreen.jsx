@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Star, ArrowRight, CreditCard, Coffee, Fuel, UtensilsCrossed, ShoppingBag, Ticket, Clock } from 'lucide-react'
 import { useApp } from '../context/AppContext'
+import { tierTheme } from '../theme/tiers'
 import { tiers } from '../data/mockData'
 
 const CAT_ICON = { 'Free Coffee': Coffee, 'Fuel Discount': Fuel, 'Food Discount': UtensilsCrossed, Merchandise: ShoppingBag, 'Partner Rewards': Ticket }
@@ -18,6 +19,7 @@ export default function RewardsScreen() {
   const next = tiers[tiers.findIndex((t) => t.name === member.tier) + 1]
   const pct = next ? Math.min(100, ((member.points - tier.min) / (next.min - tier.min)) * 100) : 100
   const away = next ? next.min - member.points : 0
+  const th = tierTheme(member.tier) // balance card follows the tier colour, same as the home card
 
   const doRedeem = async (r) => {
     const res = await redeemReward(r)
@@ -41,32 +43,32 @@ export default function RewardsScreen() {
       <div className="scroll" style={{ paddingTop: 84 }}>
         <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--ink)', padding: '0 20px 16px' }}>Your Rewards</h1>
 
-        {/* balance card */}
+        {/* balance card — follows the member's tier colour, same as the home card */}
         <div style={{ padding: '0 20px' }}>
-          <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 24, padding: 24, background: 'linear-gradient(135deg,#0057b8,#0060a9)', color: '#fff', boxShadow: '0 12px 40px rgba(0,87,184,0.15)' }}>
+          <div className={th.shimmer ? 'gold-shimmer' : ''} style={{ position: 'relative', overflow: 'hidden', borderRadius: 24, padding: 24, background: th.card, color: th.text, boxShadow: `0 12px 40px ${th.glow}`, border: '1px solid rgba(255,255,255,0.25)' }}>
             <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(255,255,255,0.1), transparent)', pointerEvents: 'none' }} />
             <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', gap: 24 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
-                  <div className="label" style={{ color: 'rgba(255,255,255,0.8)' }}>Available Balance</div>
+                  <div className="label" style={{ color: th.sub }}>Available Balance</div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 5, marginTop: 4 }}>
-                    <span style={{ fontSize: 48, fontWeight: 700, lineHeight: 1, letterSpacing: '-0.02em' }}>{member.points.toLocaleString()}</span>
-                    <span style={{ fontSize: 18, color: 'rgba(255,255,255,0.9)' }}>pts</span>
+                    <span style={{ fontSize: 48, fontWeight: 700, lineHeight: 1, letterSpacing: '-0.02em', color: th.text }}>{member.points.toLocaleString()}</span>
+                    <span style={{ fontSize: 18, color: th.sub }}>pts</span>
                   </div>
                 </div>
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 999, background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.3)', boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.2)' }}>
-                  <Star size={13} fill="#fff" color="#fff" />
-                  <span style={{ fontSize: 12, fontWeight: 600 }}>{member.tier} Tier</span>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 999, ...th.badge }}>
+                  <Star size={13} fill={th.badge.color} color={th.badge.color} />
+                  <span style={{ fontSize: 12, fontWeight: 600, color: th.badge.color }}>{member.tier} Tier</span>
                 </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: 'rgba(255,255,255,0.9)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: th.sub }}>
                   <span style={{ fontSize: 12 }}>Distance to {next ? next.name : 'Max'}</span>
-                  <span style={{ fontSize: 12, fontWeight: 700 }}>{next ? `${away.toLocaleString()} pts` : '★'}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: th.text }}>{next ? `${away.toLocaleString()} pts` : '★'}</span>
                 </div>
-                <div style={{ height: 8, width: '100%', background: 'rgba(255,255,255,0.2)', borderRadius: 999, overflow: 'hidden' }}>
+                <div style={{ height: 8, width: '100%', background: th.track, borderRadius: 999, overflow: 'hidden' }}>
                   <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 1, ease: 'easeOut' }}
-                    style={{ height: '100%', background: '#fff', borderRadius: 999, boxShadow: '0 0 10px rgba(255,255,255,0.5)' }} />
+                    style={{ height: '100%', background: th.fill, borderRadius: 999 }} />
                 </div>
               </div>
             </div>
