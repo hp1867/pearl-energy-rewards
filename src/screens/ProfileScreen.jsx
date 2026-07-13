@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import {
-  Receipt, Gift, CreditCard, Bell, Shield, HelpCircle, Headphones, LogOut, ChevronRight, Pencil, Search,
+  Receipt, Gift, CreditCard, Bell, HelpCircle, LogOut, ChevronRight, Pencil,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { Header } from './OffersScreen'
@@ -11,17 +11,14 @@ const formatJoined = (v) => {
 }
 
 export default function ProfileScreen() {
-  const { member, logout, setOverlay, notify } = useApp()
+  const { member, logout, setOverlay } = useApp()
 
   const rows = [
     { icon: Receipt, label: 'Transaction History', go: () => setOverlay('receipts') },
-    { icon: Gift, label: 'Reward History', go: () => notify('Opening reward history') },
+    { icon: Gift, label: 'Reward History', go: () => setOverlay('coupons') },
     { icon: CreditCard, label: 'Saved Wallet Card', go: () => setOverlay('wallet') },
-    { icon: Search, label: 'Customer Lookup', go: () => setOverlay('lookup') },
-    { icon: Bell, label: 'Notification Settings', go: () => setOverlay('notifications') },
-    { icon: Shield, label: 'Security Settings', go: () => notify('Security settings') },
-    { icon: HelpCircle, label: 'Help Centre', go: () => notify('Opening Help Centre') },
-    { icon: Headphones, label: 'Contact Support', go: () => notify('Connecting to support…') },
+    { icon: Bell, label: 'Notifications', go: () => setOverlay('notifications') },
+    { icon: HelpCircle, label: 'Help & Support', go: () => setOverlay('help') },
   ]
 
   return (
@@ -41,7 +38,7 @@ export default function ProfileScreen() {
               <div style={{ fontSize: 11.5, opacity: 0.7, marginTop: 2 }}>Customer #{member.customerNumber}</div>
               <span className="pill" style={{ background: 'var(--grad-gold)', color: '#3a2c08', marginTop: 8, display: 'inline-block' }}>★ {member.tier} Member</span>
             </div>
-            <button onClick={() => notify('Edit profile')} style={{ position: 'absolute', top: 16, right: 16, width: 34, height: 34, borderRadius: 10, background: 'rgba(255,255,255,.18)', display: 'grid', placeItems: 'center', color: '#fff' }}><Pencil size={16} /></button>
+            <button onClick={() => setOverlay('editprofile')} style={{ position: 'absolute', top: 16, right: 16, width: 34, height: 34, borderRadius: 10, background: 'rgba(255,255,255,.18)', display: 'grid', placeItems: 'center', color: '#fff' }}><Pencil size={16} /></button>
           </div>
         </div>
 

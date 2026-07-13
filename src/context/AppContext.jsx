@@ -154,13 +154,20 @@ export function AppProvider({ children }) {
 
   const lookupCustomer = useCallback((customerNumber) => data.lookupCustomer(customerNumber), [])
 
+  const updateProfile = useCallback(async (fields) => {
+    if (!member) return { ok: false, message: 'Please log in first' }
+    await data.updateProfile(member.uid, fields)
+    notify('Profile updated ✅')
+    return { ok: true }
+  }, [member, notify])
+
   const value = {
     mode: DATA_MODE,
     tab, setTab, overlay, setOverlay, overlayArg, setOverlayArg, toast, notify,
     user, member, authed: !!member, resolving: user === undefined,
     offers, rewards, fuelPrices, menu, categories, stations, notifications,
     pendingRewards, setPendingRewards, redeemReward, activateReward, useReward, removeReward,
-    signup, login, loginProvider, logout, lookupCustomer,
+    signup, login, loginProvider, logout, lookupCustomer, updateProfile,
   }
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }

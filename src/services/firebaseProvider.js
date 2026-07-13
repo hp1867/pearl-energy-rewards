@@ -4,7 +4,7 @@ import {
   signOut, GoogleAuthProvider, OAuthProvider, signInWithPopup,
 } from 'firebase/auth'
 import {
-  doc, setDoc, getDoc, deleteDoc, onSnapshot, collection, query, where, getDocs, runTransaction, addDoc, serverTimestamp,
+  doc, setDoc, getDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, getDocs, runTransaction, addDoc, serverTimestamp,
 } from 'firebase/firestore'
 import { auth, db } from '../firebase/config'
 import { buildNewCustomer, buildQrData, tierForPoints } from './ids'
@@ -54,6 +54,21 @@ export function createFirebaseProvider() {
       const q = query(collection(db, 'customers'), where('customerNumber', '==', String(customerNumber).trim()))
       const res = await getDocs(q)
       return res.empty ? null : res.docs[0].data()
+    },
+
+    // Update editable profile fields (identity/points fields stay untouched;
+    // firestore.rules also blocks them server-side)
+    async updateProfile(uid, fields) {
+      const allowed = {}
+      for (const k of ['firstName', 'lastName', 'mobile', 'dob', 'security']) {
+        if (fields[k] !== undefined) allowed[k] = fields[k]
+      }
+      const snap = await getDoc(customerRef(uid))
+      if (!snap.exists()) return null
+      const c = snap.data()
+      const first = allowed.firstName ?? c.firstName, last = allowed.lastName ?? c.lastName
+      await updateDoc(customerRef(uid), { ...allowed, name: `${first} ${last}`, updatedAt: Date.now() })
+      return { ...c, ...allowed }
     },
 
     async redeemReward(uid, reward) {

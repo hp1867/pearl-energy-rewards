@@ -147,6 +147,17 @@ export function createLocalProvider() {
       return Object.values(getCustomers()).find((c) => c.customerNumber === String(customerNumber).trim()) || null
     },
 
+    // Update editable profile fields (identity/points fields are not touchable here)
+    async updateProfile(uid, fields) {
+      const customers = getCustomers(); const c = customers[uid]
+      if (!c) return null
+      for (const k of ['firstName', 'lastName', 'mobile', 'dob', 'security']) {
+        if (fields[k] !== undefined) c[k] = fields[k]
+      }
+      syncDerived(c); saveCustomers(customers)
+      return c
+    },
+
     async redeemReward(uid, reward) {
       const customers = getCustomers(); const c = customers[uid]
       if (!c) return { ok: false, message: 'Customer not found' }

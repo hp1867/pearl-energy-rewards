@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import {
   ChevronLeft, TrendingDown, TrendingUp, Navigation, Search, SlidersHorizontal, Crosshair,
   Smartphone, Wallet, Download, Share2, ScanLine, X, Coffee, Car, Banknote, UtensilsCrossed,
-  Zap, Info, Tag, Star, Fuel, Bell, AlertCircle,
+  Zap, Info, Tag, Star, Fuel, Bell, AlertCircle, ChevronDown, Phone, Mail, Clock,
 } from 'lucide-react'
 import Barcode from 'react-barcode'
 import { QRCodeCanvas } from 'qrcode.react'
@@ -481,6 +481,113 @@ export function MyCoupons() {
             })}
           </div>
         )}
+      </div>
+    </Shell>
+  )
+}
+
+/* ---------------- Edit Profile ---------------- */
+export function EditProfile() {
+  const { member, updateProfile, setOverlay } = useApp()
+  const [f, setF] = useState({
+    firstName: member.firstName || '', lastName: member.lastName || '',
+    mobile: member.mobile || '', dob: member.dob || '',
+  })
+  const [saving, setSaving] = useState(false)
+  const bind = (k) => ({ value: f[k], onChange: (e) => setF({ ...f, [k]: e.target.value }) })
+  const save = async () => {
+    if (!f.firstName.trim() || !f.lastName.trim()) return
+    setSaving(true)
+    await updateProfile({ ...f, firstName: f.firstName.trim(), lastName: f.lastName.trim() })
+    setSaving(false)
+    setOverlay(null)
+  }
+
+  const input = { width: '100%', padding: '13px 14px', borderRadius: 13, border: '1px solid var(--line)', background: '#fff', fontSize: 14.5, color: 'var(--ink)' }
+  const label = { fontSize: 12, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6, display: 'block' }
+
+  return (
+    <Shell title="Edit Profile">
+      <div style={{ padding: '8px 20px 0', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ display: 'flex', gap: 12 }}>
+          <div style={{ flex: 1 }}><span style={label}>First name</span><input style={input} {...bind('firstName')} placeholder="First name" /></div>
+          <div style={{ flex: 1 }}><span style={label}>Last name</span><input style={input} {...bind('lastName')} placeholder="Last name" /></div>
+        </div>
+        <div><span style={label}>Mobile</span><input style={input} type="tel" {...bind('mobile')} placeholder="+61 4xx xxx xxx" /></div>
+        <div><span style={label}>Date of birth</span><input style={input} type="date" {...bind('dob')} /></div>
+        <div>
+          <span style={label}>Email (login — cannot be changed here)</span>
+          <input style={{ ...input, background: 'var(--surface-low)', color: 'var(--muted)' }} value={member.email || ''} disabled />
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>
+          Membership ID {member.membershipId} and customer number #{member.customerNumber} are permanent and stay attached to your account.
+        </div>
+        <button className="btn" onClick={save} disabled={saving || !f.firstName.trim() || !f.lastName.trim()}
+          style={{ opacity: saving || !f.firstName.trim() || !f.lastName.trim() ? 0.6 : 1 }}>
+          {saving ? 'Saving…' : 'Save changes'}
+        </button>
+      </div>
+    </Shell>
+  )
+}
+
+/* ---------------- Help & Support ---------------- */
+const FAQS = [
+  { q: 'How do I earn points?', a: 'You earn 1 point for every $1 spent on fuel and in-store purchases at any Pearl Energy station. Scan your membership card (or the QR in this app) at the counter before paying.' },
+  { q: 'How long do purchased coupons last?', a: 'Coupons purchased with points stay active for 7 days from the moment you redeem them, then expire automatically. The exact expiry date is shown on every coupon in My Coupons.' },
+  { q: 'What is the Fuel Mission?', a: 'Fill up 4 times at any Pearl Energy station within 2 weeks and a surprise prize is unlocked instantly — bonus points, a free coffee, or a free car wash. The prize is drawn at random when you finish.' },
+  { q: 'How do membership tiers work?', a: 'Tiers are based on lifetime points: Blue (0+), Silver (1,000+), Gold (1,500+), Platinum (4,000+). Higher tiers earn points faster and unlock extra perks.' },
+  { q: 'How do offers get applied?', a: 'General offers on the Offers tab are automatic — just scan your card at the register and any eligible offer is applied at the POS. No need to redeem anything.' },
+]
+
+export function HelpSupport() {
+  const [open, setOpen] = useState(null)
+  return (
+    <Shell title="Help & Support">
+      <div style={{ padding: '8px 20px 0' }}>
+        <h3 style={{ fontSize: 17, fontWeight: 700, color: 'var(--ink)', marginBottom: 12 }}>Frequently asked questions</h3>
+        <div style={{ background: '#fff', borderRadius: 18, overflow: 'hidden', boxShadow: 'var(--shadow-sm)', marginBottom: 24 }}>
+          {FAQS.map((f, i) => (
+            <div key={i} style={{ borderTop: i ? '1px solid var(--line)' : 'none' }}>
+              <button onClick={() => setOpen(open === i ? null : i)}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '15px 16px', textAlign: 'left' }}>
+                <span style={{ flex: 1, fontWeight: 600, fontSize: 14 }}>{f.q}</span>
+                <ChevronDown size={17} color="var(--muted)" style={{ transform: open === i ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+              </button>
+              {open === i && (
+                <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                  style={{ padding: '0 16px 15px', fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.55 }}>
+                  {f.a}
+                </motion.p>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <h3 style={{ fontSize: 17, fontWeight: 700, color: 'var(--ink)', marginBottom: 12 }}>Contact us</h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <a href="tel:132737" style={{ display: 'flex', alignItems: 'center', gap: 14, background: '#fff', borderRadius: 16, padding: '15px 16px', boxShadow: 'var(--shadow-sm)', color: 'var(--ink)' }}>
+            <div style={{ width: 38, height: 38, borderRadius: 11, background: 'var(--silver)', display: 'grid', placeItems: 'center', color: 'var(--blue)' }}><Phone size={18} /></div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, fontSize: 14 }}>Call us — 13 27 37</div>
+              <div style={{ fontSize: 12, color: 'var(--muted)' }}>Mon–Fri 8am–8pm, Sat 9am–5pm AEST</div>
+            </div>
+          </a>
+          <a href="mailto:support@pearlenergy.com.au" style={{ display: 'flex', alignItems: 'center', gap: 14, background: '#fff', borderRadius: 16, padding: '15px 16px', boxShadow: 'var(--shadow-sm)', color: 'var(--ink)' }}>
+            <div style={{ width: 38, height: 38, borderRadius: 11, background: 'var(--silver)', display: 'grid', placeItems: 'center', color: 'var(--blue)' }}><Mail size={18} /></div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, fontSize: 14 }}>Email support</div>
+              <div style={{ fontSize: 12, color: 'var(--muted)' }}>support@pearlenergy.com.au — replies within 1 business day</div>
+            </div>
+          </a>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, background: '#fff', borderRadius: 16, padding: '15px 16px', boxShadow: 'var(--shadow-sm)' }}>
+            <div style={{ width: 38, height: 38, borderRadius: 11, background: 'var(--silver)', display: 'grid', placeItems: 'center', color: 'var(--blue)' }}><Clock size={18} /></div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, fontSize: 14 }}>Visit any station</div>
+              <div style={{ fontSize: 12, color: 'var(--muted)' }}>Staff at all 170+ stores can help with your membership</div>
+            </div>
+          </div>
+        </div>
       </div>
     </Shell>
   )
