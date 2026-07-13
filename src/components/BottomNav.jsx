@@ -32,10 +32,14 @@ export default function BottomNav() {
         <ScanLine size={24} />
       </motion.button>
 
+      {/* zIndex 60: stays tappable above overlay panels (z 50) so users can
+          always switch tabs from Find a Station, Fuel Prices, etc.; the
+          full-screen scanner (z 80) still covers it. Tapping a tab also
+          closes any open overlay. */}
       <nav
         className="glass"
         style={{
-          position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 40,
+          position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 60,
           display: 'flex', justifyContent: 'space-around', alignItems: 'center',
           height: 80, padding: '0 8px 14px',
           background: 'rgba(255,255,255,0.6)',

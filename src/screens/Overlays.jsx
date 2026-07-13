@@ -28,7 +28,7 @@ function Shell({ title, children, dark = false }) {
         <h1 style={{ fontSize: 20, fontWeight: 700, color: 'inherit' }}>{title}</h1>
         <div style={{ width: 40 }} />
       </header>
-      <div className="scroll" style={{ paddingBottom: 30 }}>{children}</div>
+      <div className="scroll" style={{ paddingBottom: 110 }}>{children}</div>
     </motion.div>
   )
 }
