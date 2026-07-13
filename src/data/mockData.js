@@ -13,12 +13,10 @@ export const member = {
   tier: 'Gold',
   joined: 'Mar 2024',
   lifetimePoints: 9120,
-  // Streak tracking
-  fuelStreak: 3,
-  lastFuelDate: '2026-06-28',
-  weeklyFuelCount: 3,
-  weekStartDate: '2026-06-23',
-  streakRewardsClaimed: [],
+  // 2-week Fuel Mission (4 fill-ups → bonus)
+  missionStart: '2026-07-06',
+  missionCount: 3,
+  missionRewarded: false,
 }
 
 export const tiers = [
@@ -188,18 +186,4 @@ export const notifications = [
   { id: 1, icon: '⛽', title: 'Fuel prices dropped near you', body: 'ULP 91 now $1.86 at Penrith', time: '10m ago' },
   { id: 2, icon: '⭐', title: 'You earned 78 points', body: 'From your Parramatta visit', time: '1d ago' },
   { id: 3, icon: '☕', title: 'New coffee deal available', body: 'Coffee + muffin just $6.50', time: '2d ago' },
-]
-
-// Streak rewards configuration
-export const streakRewards = [
-  // Fuel streak rewards (consecutive days)
-  { id: 'streak_3', type: 'fuel_streak', trigger: 3, title: '3-Day Fuel Streak', description: 'Refuel 3 days in a row', reward: { points: 200, img: '🔥', label: '200 Bonus Points' }, color: '#f39c12' },
-  { id: 'streak_7', type: 'fuel_streak', trigger: 7, title: 'Week Warrior', description: 'Refuel 7 days in a row', reward: { points: 500, img: '🏆', label: '500 Bonus Points' }, color: '#e74c3c' },
-  { id: 'streak_14', type: 'fuel_streak', trigger: 14, title: 'Fortnight Champion', description: 'Refuel 14 days in a row', reward: { points: 750, img: '👑', label: '750 Bonus Points' }, color: '#9b59b6' },
-  { id: 'streak_30', type: 'fuel_streak', trigger: 30, title: 'Monthly Master', description: 'Refuel 30 days in a row', reward: { points: 0, img: '🚗✨', label: 'Free Car Wash', freeWash: true }, color: '#3498db' },
-  
-  // Weekly fuel count rewards
-  { id: 'weekly_2', type: 'weekly_fuel', trigger: 2, title: 'Twice This Week', description: 'Refuel 2 times this week', reward: { points: 50, img: '⭐', label: '50 Bonus Points' }, color: '#f1c40f' },
-  { id: 'weekly_4', type: 'weekly_fuel', trigger: 4, title: 'Four Fill-Ups', description: 'Refuel 4 times this week', reward: { points: 300, img: '⛽⛽⛽⛽', label: '300 Bonus Points' }, color: '#27ae60' },
-  { id: 'weekly_6', type: 'weekly_fuel', trigger: 6, title: 'Daily Driver', description: 'Refuel 6 times this week', reward: { points: 500, img: '💎', label: '500 Bonus Points' }, color: '#3498db' },
 ]

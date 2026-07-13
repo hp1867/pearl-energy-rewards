@@ -35,7 +35,7 @@ export default function HomeScreen() {
   // 2-week Fuel Mission: fill up 4 times → bonus reward. Points stay hidden
   // until the target is hit — customers chase the segments, not the numbers.
   const MISSION_TARGET = 4
-  const missionCount = Math.min(member.missionCount ?? member.weeklyFuelCount ?? 0, MISSION_TARGET)
+  const missionCount = Math.min(member.missionCount ?? 0, MISSION_TARGET)
   const missionDone = missionCount >= MISSION_TARGET
   const missionLeft = MISSION_TARGET - missionCount
 
@@ -100,7 +100,7 @@ export default function HomeScreen() {
         {/* Fuel Mission Card — 4 fill-ups in 2 weeks, chased as a segmented target.
             Same dimensions as the Points card; points reveal only on completion. */}
         <div style={{ padding: '0 20px', marginTop: 14 }}>
-          <Card3D intensity={6} glare onClick={() => setOverlay('streaks')}>
+          <Card3D intensity={6} glare>
             <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 24, padding: 24, background: 'linear-gradient(135deg, #ff6b35 0%, #f7931e 100%)', color: '#fff', boxShadow: '0 16px 44px rgba(255,107,53,0.4)', border: '1px solid rgba(255,255,255,0.2)' }}>
               <div style={{ position: 'absolute', right: -40, top: -40, width: 140, height: 140, background: 'rgba(255,255,255,0.15)', borderRadius: '50%', filter: 'blur(40px)' }} />
               <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, 0.18) 50%, transparent 62%)', pointerEvents: 'none' }} />

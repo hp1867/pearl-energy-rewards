@@ -10,7 +10,7 @@ import RewardsScreen from './screens/RewardsScreen'
 import ProfileScreen from './screens/ProfileScreen'
 import BottomNav from './components/BottomNav'
 import Toast from './components/Toast'
-import { FuelPrices, StoreLocator, WalletCard, ScanModal, Receipts, Notifications, CustomerLookup, StreakRewards, MyCoupons } from './screens/Overlays'
+import { FuelPrices, StoreLocator, WalletCard, ScanModal, Receipts, Notifications, CustomerLookup, MyCoupons } from './screens/Overlays'
 
 const TABS = {
   home: HomeScreen,
@@ -28,7 +28,6 @@ const OVERLAYS = {
   receipts: Receipts,
   notifications: Notifications,
   lookup: CustomerLookup,
-  streaks: StreakRewards,
   coupons: MyCoupons,
 }
 

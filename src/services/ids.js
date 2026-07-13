@@ -46,12 +46,6 @@ export function buildNewCustomer({ firstName, lastName, email, mobile, dob, uid 
     joined: new Date().toISOString(),
     rewardsRedeemed: [],
     transactions: [],
-    // Streak tracking
-    fuelStreak: 0,
-    lastFuelDate: null,
-    weeklyFuelCount: 0,
-    weekStartDate: null,
-    streakRewardsClaimed: [],
     // 2-week Fuel Mission (4 fill-ups → bonus)
     missionStart: null,
     missionCount: 0,
