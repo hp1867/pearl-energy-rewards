@@ -5,19 +5,11 @@ import Card3D from '../components/Card3D'
 import MapView from '../components/MapView'
 import { integrations } from '../config/integrations'
 import { tierTheme } from '../theme/tiers'
-import { hotDeals, tiers, streakRewards } from '../data/mockData'
+import { hotDeals, tiers } from '../data/mockData'
 
 const greeting = () => {
   const h = new Date().getHours()
   return h < 12 ? 'Good Morning' : h < 18 ? 'Good Afternoon' : 'Good Evening'
-}
-
-const getWeekNumber = () => {
-  const now = new Date()
-  const start = new Date(now.getFullYear(), 0, 1)
-  const diff = now - start + (start.getTimezoneOffset() - now.getTimezoneOffset()) * 60000
-  const oneWeek = 604800000
-  return Math.ceil((diff + start.getTimezoneOffset() * 60000) / oneWeek)
 }
 
 const DEAL_ICON = [Zap, Cookie, Droplet, Zap, Cookie]
@@ -40,10 +32,12 @@ export default function HomeScreen() {
   const away = next ? next.min - member.points : 0
   const th = tierTheme(member.tier)
 
-  // Weekly streak progress (only weekly, no daily)
-  const weeklyFuel = member.weeklyFuelCount || 0
-  const nextWeeklyReward = [...streakRewards].filter(r => r.type === 'weekly_fuel').sort((a, b) => a.trigger - b.trigger).find(r => weeklyFuel < r.trigger)
-  const weeklyProgress = nextWeeklyReward ? (weeklyFuel / nextWeeklyReward.trigger) * 100 : 100
+  // 2-week Fuel Mission: fill up 4 times → bonus reward. Points stay hidden
+  // until the target is hit — customers chase the segments, not the numbers.
+  const MISSION_TARGET = 4
+  const missionCount = Math.min(member.missionCount ?? member.weeklyFuelCount ?? 0, MISSION_TARGET)
+  const missionDone = missionCount >= MISSION_TARGET
+  const missionLeft = MISSION_TARGET - missionCount
 
   return (
     <div className="screen">
@@ -103,7 +97,8 @@ export default function HomeScreen() {
           </Card3D>
         </div>
 
-        {/* Weekly Streak Card - underneath the points card - same dimensions as Points card */}
+        {/* Fuel Mission Card — 4 fill-ups in 2 weeks, chased as a segmented target.
+            Same dimensions as the Points card; points reveal only on completion. */}
         <div style={{ padding: '0 20px', marginTop: 14 }}>
           <Card3D intensity={6} glare onClick={() => setOverlay('streaks')}>
             <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 24, padding: 24, background: 'linear-gradient(135deg, #ff6b35 0%, #f7931e 100%)', color: '#fff', boxShadow: '0 16px 44px rgba(255,107,53,0.4)', border: '1px solid rgba(255,255,255,0.2)' }}>
@@ -111,28 +106,39 @@ export default function HomeScreen() {
               <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, 0.18) 50%, transparent 62%)', pointerEvents: 'none' }} />
               <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
                 <div>
-                  <div className="label" style={{ color: 'rgba(255,255,255,0.8)' }}>Weekly Streak</div>
+                  <div className="label" style={{ color: 'rgba(255,255,255,0.8)' }}>Fuel Mission</div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginTop: 4 }}>
-                    <span style={{ fontSize: 48, fontWeight: 700, lineHeight: 1, letterSpacing: '-0.02em', color: '#fff' }}>{weeklyFuel}</span>
-                    <span style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,0.8)' }}>refuels</span>
+                    <span style={{ fontSize: 48, fontWeight: 700, lineHeight: 1, letterSpacing: '-0.02em', color: '#fff' }}>{missionCount}<span style={{ fontSize: 26, fontWeight: 600, color: 'rgba(255,255,255,0.75)' }}>/{MISSION_TARGET}</span></span>
+                    <span style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,0.8)' }}>fill-ups</span>
                   </div>
                 </div>
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 12px', borderRadius: 999, background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.35)' }}>
                   <Target size={13} fill="#fff" color="#fff" />
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Week {getWeekNumber()}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.04em' }}>2-Week Mission</span>
                 </div>
               </div>
               <div style={{ position: 'relative', zIndex: 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <span style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,0.8)' }}>Progress to next reward</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>{nextWeeklyReward ? nextWeeklyReward.reward.label : 'Max rewards earned'}</span>
+                  <span style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,0.8)' }}>Fill up 4× at Pearl to complete</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>{missionDone ? 'Complete! 🏆' : `${missionLeft} to go`}</span>
                 </div>
-                <div style={{ width: '100%', height: 8, background: 'rgba(255,255,255,0.2)', borderRadius: 999, overflow: 'hidden' }}>
-                  <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min(100, weeklyProgress)}%` }} transition={{ duration: 1, ease: 'easeOut' }}
-                    style={{ height: '100%', borderRadius: 999, background: '#fff' }} />
+                {/* 4 × 25% target segments with gaps — each fill-up lights one up */}
+                <div style={{ display: 'flex', gap: 7 }}>
+                  {[...Array(MISSION_TARGET)].map((_, i) => (
+                    <div key={i} style={{ flex: 1, height: 16, borderRadius: 999, background: 'rgba(255,255,255,0.22)', border: '1px solid rgba(255,255,255,0.25)', overflow: 'hidden' }}>
+                      {i < missionCount && (
+                        <motion.div initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ duration: 0.45, delay: 0.15 + i * 0.15, ease: 'easeOut' }}
+                          style={{ width: '100%', height: '100%', borderRadius: 999, background: '#fff', boxShadow: '0 0 12px rgba(255,255,255,0.7)', transformOrigin: 'left', display: 'grid', placeItems: 'center' }}>
+                          <span style={{ fontSize: 10, lineHeight: 1 }}>⛽</span>
+                        </motion.div>
+                      )}
+                    </div>
+                  ))}
                 </div>
-                <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', marginTop: 8, textAlign: 'center' }}>
-                  {nextWeeklyReward ? `${nextWeeklyReward.trigger - weeklyFuel} more refuels this week for ${nextWeeklyReward.reward.label}` : 'All weekly rewards claimed! 🏆'}
+                <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.9)', marginTop: 8, textAlign: 'center', fontWeight: missionDone ? 700 : 500 }}>
+                  {missionDone
+                    ? `🏆 Mission complete! +200 bonus points added — balance ${member.points.toLocaleString()} pts`
+                    : `🎁 ${missionLeft} more fill-up${missionLeft === 1 ? '' : 's'} to unlock your mystery reward`}
                 </p>
               </div>
             </div>

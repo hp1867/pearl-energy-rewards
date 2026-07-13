@@ -52,6 +52,10 @@ export function buildNewCustomer({ firstName, lastName, email, mobile, dob, uid 
     weeklyFuelCount: 0,
     weekStartDate: null,
     streakRewardsClaimed: [],
+    // 2-week Fuel Mission (4 fill-ups → bonus)
+    missionStart: null,
+    missionCount: 0,
+    missionRewarded: false,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   }

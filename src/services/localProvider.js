@@ -90,6 +90,30 @@ function getWeekStart(dateStr) {
   return monday.toISOString().split('T')[0]
 }
 
+// 2-week Fuel Mission: fill up MISSION_TARGET times within MISSION_WINDOW_DAYS
+// of the first fill-up → MISSION_BONUS points, awarded once per window.
+export const MISSION_TARGET = 4
+const MISSION_WINDOW_DAYS = 14
+const MISSION_BONUS = 200
+
+function updateMission(c, todayStr) {
+  const start = c.missionStart ? new Date(c.missionStart) : null
+  const expired = !start || (new Date(todayStr) - start) / 86400000 >= MISSION_WINDOW_DAYS
+  if (expired) { c.missionStart = todayStr; c.missionCount = 0; c.missionRewarded = false }
+  c.missionCount = (c.missionCount || 0) + 1
+  if (c.missionCount >= MISSION_TARGET && !c.missionRewarded) {
+    c.missionRewarded = true
+    c.points += MISSION_BONUS
+    c.lifetimePoints += MISSION_BONUS
+    c.transactions = [{
+      id: Date.now() + 1, store: 'Fuel Mission', date: todayStr, amount: 0,
+      points: MISSION_BONUS, type: `Mission complete: ${MISSION_TARGET} fill-ups in 2 weeks`,
+    }, ...(c.transactions || [])]
+    return MISSION_BONUS
+  }
+  return 0
+}
+
 function checkStreakRewards(c) {
   const earned = []
   const claimed = c.streakRewardsClaimed || []
@@ -181,9 +205,10 @@ export function createLocalProvider() {
       const litres = purchaseData.litres || 0
       const points = Math.floor(amount) // 1 point per dollar
       
-      // Update streaks
+      // Update streaks + the 2-week fuel mission (may award bonus points)
       updateStreaks(c, today)
-      
+      const missionBonus = updateMission(c, today)
+
       // Add points
       c.points += points
       c.lifetimePoints += points
@@ -204,7 +229,7 @@ export function createLocalProvider() {
       
       syncDerived(c); saveCustomers(customers)
       
-      return { ok: true, customer: c, pointsEarned: points, streakRewards: earned, fuelStreak: c.fuelStreak, weeklyFuelCount: c.weeklyFuelCount }
+      return { ok: true, customer: c, pointsEarned: points, missionBonus, missionCount: c.missionCount, streakRewards: earned, fuelStreak: c.fuelStreak, weeklyFuelCount: c.weeklyFuelCount }
     },
 
     // Claim a streak reward
