@@ -16,7 +16,7 @@ const read = (k, fallback) => { try { return JSON.parse(localStorage.getItem(k))
 const write = (k, v) => localStorage.setItem(k, JSON.stringify(v))
 
 // seed catalogs once; bump SEED_VERSION to refresh demo data after changes
-const SEED_VERSION = '4'
+const SEED_VERSION = '5' // bumped: removed car wash / movie voucher / drink bottle / eggs
 if (localStorage.getItem('pe_seedver') !== SEED_VERSION) {
   Object.entries(SEED).forEach(([k, v]) => write(k, v))
   localStorage.setItem('pe_seedver', SEED_VERSION)
@@ -52,10 +52,10 @@ const MISSION_WINDOW_DAYS = 14
 // which prize the customer actually gets stays secret until they finish.
 export const MISSION_PRIZES = [
   { type: 'points', value: 100, label: '100 Bonus Points', img: '⭐', weight: 40 },
-  { type: 'points', value: 200, label: '200 Bonus Points', img: '⚡', weight: 30 },
+  { type: 'points', value: 200, label: '200 Bonus Points', img: '⚡', weight: 25 },
   { type: 'points', value: 500, label: '500 Bonus Points', img: '💎', weight: 10 },
-  { type: 'coupon', label: 'Free Regular Coffee', img: '☕', color: '#7a4a2b', weight: 15 },
-  { type: 'coupon', label: 'Free Car Wash', img: '🚗', color: '#3498db', weight: 5 },
+  { type: 'coupon', label: 'Free Regular Coffee', img: '☕', color: '#7a4a2b', weight: 20 },
+  { type: 'coupon', label: 'Free Snack', img: '🍫', color: '#8e44ad', weight: 5 },
 ]
 
 function drawMissionPrize() {

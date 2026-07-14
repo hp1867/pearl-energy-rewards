@@ -41,7 +41,7 @@ export default function OffersScreen() {
                         <Clock size={13} /> Expires {o.expiry}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--primary)', fontWeight: 700, marginTop: 4 }}>
-                        <span style={{ fontSize: 12 }}>🏷️</span> Auto applied
+                        <span style={{ fontSize: 12 }}>🏷️</span> Auto apply to POS
                       </div>
                     </div>
                   </div>

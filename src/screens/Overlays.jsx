@@ -612,7 +612,7 @@ export function TiersInfo() {
 const FAQS = [
   { q: 'How do I earn points?', a: 'You earn 1 point for every $1 spent on fuel and in-store purchases at any Pearl Energy station. Scan your membership card (or the QR in this app) at the counter before paying.' },
   { q: 'How long do purchased coupons last?', a: 'Coupons purchased with points stay active for 7 days from the moment you redeem them, then expire automatically. The exact expiry date is shown on every coupon in My Coupons.' },
-  { q: 'What is the Fuel Mission?', a: 'Fill up 4 times at any Pearl Energy station within 2 weeks and a surprise prize is unlocked instantly — bonus points, a free coffee, or a free car wash. The prize is drawn at random when you finish.' },
+  { q: 'What is the Fuel Mission?', a: 'Fill up 4 times at any Pearl Energy station within 2 weeks and a surprise prize is unlocked instantly — bonus points, a free coffee, or a free snack. The prize is drawn at random when you finish.' },
   { q: 'How do membership tiers work?', a: 'Tiers are based on lifetime points and never go down: Blue (0+), Silver (1,000+), Gold (2,500+), Diamond (5,000+), Immortal (10,000+). Higher tiers earn points faster and unlock bigger perks — tap your tier badge on the home screen to see the full ladder.' },
   { q: 'How do offers get applied?', a: 'General offers on the Offers tab are automatic — just scan your card at the register and any eligible offer is applied at the POS. No need to redeem anything.' },
 ]

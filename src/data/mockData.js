@@ -34,8 +34,8 @@ export const tiers = [
     perks: ['1.5 points per $1', '4¢/L off every fill-up', 'Free coffee every fortnight', 'Priority support'],
   },
   {
-    name: 'Diamond', min: 5000, color: '#36a3e0', icon: '💎', perk: '2x points + monthly car wash',
-    perks: ['2 points per $1', '6¢/L off every fill-up', 'Free car wash every month', 'Exclusive partner rewards'],
+    name: 'Diamond', min: 5000, color: '#36a3e0', icon: '💎', perk: '2x points + bigger fuel discounts',
+    perks: ['2 points per $1', '6¢/L off every fill-up', 'Free coffee every week', 'Exclusive partner rewards'],
   },
   {
     name: 'Immortal', min: 10000, color: '#7c3aed', icon: '👑', perk: '3x points + VIP everything',
@@ -129,7 +129,6 @@ export const menuItems = [
   // Grocery
   { id: 28, group: 'grocery', name: 'Full Cream Milk 2L', cat: 'Grocery', desc: 'Daily essentials', price: '$4.40', img: '🥛', avail: true, tags: ['Best Sellers'] },
   { id: 29, group: 'grocery', name: 'White Bread Loaf', cat: 'Grocery', desc: 'Fresh sliced', price: '$3.80', img: '🍞', avail: true, tags: ['Popular'] },
-  { id: 30, group: 'grocery', name: 'Free Range Eggs (6)', cat: 'Grocery', desc: 'Farm fresh', price: '$5.20', img: '🥚', avail: true, tags: ['New'] },
 ]
 
 export const menuFilters = ['Popular', 'New', 'Best Sellers', 'Imported']
@@ -182,8 +181,8 @@ export const rewards = [
   { id: 1, cat: 'Free Coffee', title: 'Free Barista Coffee', cost: 500, img: '☕', color: '#7a4a2b' },
   { id: 2, cat: 'Fuel Discount', title: '$10 Fuel Voucher', cost: 1000, img: '⛽', color: '#0057B8' },
   { id: 3, cat: 'Food Discount', title: '$8 Off Any Meal', cost: 800, img: '🍔', color: '#c0392b' },
-  { id: 4, cat: 'Merchandise', title: 'Pearl Drink Bottle', cost: 1500, img: '🥤', color: '#16a085' },
-  { id: 5, cat: 'Partner Rewards', title: '$25 Movie Voucher', cost: 2500, img: '🎬', color: '#6c3483' },
+  { id: 4, cat: 'Free Coffee', title: 'Coffee + Muffin Combo', cost: 900, img: '🧁', color: '#8e5b3a' },
+  { id: 5, cat: 'Fuel Discount', title: '$20 Fuel Voucher', cost: 1800, img: '⛽', color: '#003a86' },
 ]
 
 export const rewardJourney = [
