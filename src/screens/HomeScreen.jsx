@@ -109,7 +109,7 @@ export default function HomeScreen() {
             Same dimensions as the Points card; points reveal only on completion. */}
         <div style={{ padding: '0 20px', marginTop: 14 }}>
           <Card3D intensity={6} glare onClick={() => setShowMissionInfo(true)}>
-            <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 24, padding: 24, background: 'linear-gradient(135deg, #e8506e 0%, #f2709c 55%, #ff9a8b 100%)', color: '#fff', boxShadow: '0 16px 44px rgba(242,112,156,0.38)', border: '1px solid rgba(255,255,255,0.25)' }}>
+            <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 24, padding: 24, background: 'linear-gradient(135deg, #b52e4c 0%, #d2477a 55%, #e56d61 100%)', color: '#fff', boxShadow: '0 16px 44px rgba(181,46,76,0.42)', border: '1px solid rgba(255,255,255,0.25)' }}>
               <div style={{ position: 'absolute', right: -40, top: -40, width: 140, height: 140, background: 'rgba(255,255,255,0.15)', borderRadius: '50%', filter: 'blur(40px)' }} />
               <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, 0.18) 50%, transparent 62%)', pointerEvents: 'none' }} />
               <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
@@ -289,7 +289,7 @@ export default function HomeScreen() {
               </div>
 
               <button onClick={() => setShowMissionInfo(false)}
-                style={{ width: '100%', marginTop: 16, padding: 14, borderRadius: 14, background: 'linear-gradient(135deg, #e8506e, #f2709c)', color: '#fff', fontWeight: 800, fontSize: 14, boxShadow: '0 8px 24px rgba(242,112,156,0.35)' }}>
+                style={{ width: '100%', marginTop: 16, padding: 14, borderRadius: 14, background: 'linear-gradient(135deg, #b52e4c, #d2477a)', color: '#fff', fontWeight: 800, fontSize: 14, boxShadow: '0 8px 24px rgba(181,46,76,0.35)' }}>
                 Challenge accepted 🔥
               </button>
             </motion.div>
