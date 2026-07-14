@@ -1,19 +1,15 @@
-// Pearl Energy wordmark + pearl-drop mark
+// Official Pearl Energy mark — the round "P" badge cropped from the logo
+// downloaded from pearlenergy.com.au (public/pearl-logo.png, wordmark 942×211;
+// the badge is the square at the left edge).
 export function PearlMark({ size = 34, light = false }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 48 48" fill="none">
-      <defs>
-        <radialGradient id="pearl" cx="38%" cy="32%" r="75%">
-          <stop offset="0%" stopColor="#ffffff" />
-          <stop offset="42%" stopColor={light ? '#cfe2ff' : '#4da3ff'} />
-          <stop offset="100%" stopColor={light ? '#4da3ff' : '#0057b8'} />
-        </radialGradient>
-      </defs>
-      {/* fuel-drop silhouette */}
-      <path d="M24 3C24 3 8 21 8 31a16 16 0 1 0 32 0C40 21 24 3 24 3Z" fill="url(#pearl)" />
-      <ellipse cx="18.5" cy="26" rx="5.5" ry="7" fill="#fff" opacity="0.55" />
-      <circle cx="30" cy="35" r="2.4" fill="#fff" opacity="0.8" />
-    </svg>
+    <div style={{
+      width: size, height: size, borderRadius: '50%', overflow: 'hidden', flexShrink: 0,
+      background: '#fff', boxShadow: light ? '0 6px 20px rgba(0,20,60,0.35)' : '0 4px 14px rgba(0,40,90,0.2)',
+    }}>
+      <img src="/pearl-logo.png" alt="Pearl Energy"
+        style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'left center', display: 'block' }} />
+    </div>
   )
 }
 

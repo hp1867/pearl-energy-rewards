@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { CreditCard, Star, MapPin, ArrowUpRight, Zap, Cookie, Droplet, Navigation, Target, Tag, X } from 'lucide-react'
 import { useApp } from '../context/AppContext'
+import { PearlMark } from '../components/Brand'
 import Card3D from '../components/Card3D'
 import MapView from '../components/MapView'
 import { integrations } from '../config/integrations'
@@ -51,9 +52,7 @@ export default function HomeScreen() {
       {/* Top app bar */}
       <header className="glass" style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 30, height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', background: 'rgba(249,249,252,0.8)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--grad-blue)', display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 700, fontSize: 15 }}>
-            {member.firstName[0]}{member.lastName[0]}
-          </div>
+          <PearlMark size={40} />
           <div>
             <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-soft)' }}>{greeting()},</div>
             <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--primary)' }}>{member.firstName}</h1>
