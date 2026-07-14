@@ -109,7 +109,7 @@ export default function HomeScreen() {
             Same dimensions as the Points card; points reveal only on completion. */}
         <div style={{ padding: '0 20px', marginTop: 14 }}>
           <Card3D intensity={6} glare onClick={() => setShowMissionInfo(true)}>
-            <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 24, padding: 24, background: 'linear-gradient(135deg, #065f56 0%, #0d9488 55%, #2dd4bf 100%)', color: '#fff', boxShadow: '0 16px 44px rgba(13,148,136,0.38)', border: '1px solid rgba(255,255,255,0.2)' }}>
+            <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 24, padding: 24, background: 'linear-gradient(135deg, #e8506e 0%, #f2709c 55%, #ff9a8b 100%)', color: '#fff', boxShadow: '0 16px 44px rgba(242,112,156,0.38)', border: '1px solid rgba(255,255,255,0.25)' }}>
               <div style={{ position: 'absolute', right: -40, top: -40, width: 140, height: 140, background: 'rgba(255,255,255,0.15)', borderRadius: '50%', filter: 'blur(40px)' }} />
               <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, 0.18) 50%, transparent 62%)', pointerEvents: 'none' }} />
               <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
@@ -269,27 +269,27 @@ export default function HomeScreen() {
                 ['🎁', 'Light all 4 — a surprise prize is unlocked instantly.'],
               ].map(([icon, text], i) => (
                 <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 10 }}>
-                  <div style={{ width: 34, height: 34, borderRadius: 10, background: 'linear-gradient(135deg, #0d948822, #2dd4bf22)', display: 'grid', placeItems: 'center', fontSize: 16, flexShrink: 0 }}>{icon}</div>
+                  <div style={{ width: 34, height: 34, borderRadius: 10, background: 'linear-gradient(135deg, #f2709c22, #ff9a8b22)', display: 'grid', placeItems: 'center', fontSize: 16, flexShrink: 0 }}>{icon}</div>
                   <p style={{ fontSize: 13.5, color: 'var(--ink-soft)', lineHeight: 1.45, paddingTop: 7 }}>{text}</p>
                 </div>
               ))}
 
-              <div style={{ marginTop: 16, padding: 14, borderRadius: 16, background: 'linear-gradient(135deg, #e6fffa, #d2f5ee)', border: '1px solid #a7e3d6' }}>
-                <div style={{ fontSize: 12, fontWeight: 800, color: '#0f766e', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>One of these will be yours</div>
+              <div style={{ marginTop: 16, padding: 14, borderRadius: 16, background: 'linear-gradient(135deg, #fdeef3, #ffe6e2)', border: '1px solid #f9c6d4' }}>
+                <div style={{ fontSize: 12, fontWeight: 800, color: '#c2416b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>One of these will be yours</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {MISSION_PRIZES.map((p) => (
-                    <span key={p.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 999, background: '#fff', border: '1px solid #a7e3d6', fontSize: 12, fontWeight: 700, color: 'var(--ink)' }}>
+                    <span key={p.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 999, background: '#fff', border: '1px solid #f9c6d4', fontSize: 12, fontWeight: 700, color: 'var(--ink)' }}>
                       {p.img} {p.label}
                     </span>
                   ))}
                 </div>
-                <p style={{ fontSize: 12, color: '#0f766e', marginTop: 10, lineHeight: 1.45 }}>
+                <p style={{ fontSize: 12, color: '#c2416b', marginTop: 10, lineHeight: 1.45 }}>
                   🤫 Which one? That's the surprise — your prize is drawn at random and revealed only the moment you complete the mission.
                 </p>
               </div>
 
               <button onClick={() => setShowMissionInfo(false)}
-                style={{ width: '100%', marginTop: 16, padding: 14, borderRadius: 14, background: 'linear-gradient(135deg, #0d9488, #2dd4bf)', color: '#fff', fontWeight: 800, fontSize: 14, boxShadow: '0 8px 24px rgba(13,148,136,0.35)' }}>
+                style={{ width: '100%', marginTop: 16, padding: 14, borderRadius: 14, background: 'linear-gradient(135deg, #e8506e, #f2709c)', color: '#fff', fontWeight: 800, fontSize: 14, boxShadow: '0 8px 24px rgba(242,112,156,0.35)' }}>
                 Challenge accepted 🔥
               </button>
             </motion.div>
