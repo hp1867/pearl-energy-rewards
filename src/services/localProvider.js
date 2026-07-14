@@ -65,6 +65,38 @@ function drawMissionPrize() {
   return MISSION_PRIZES[0]
 }
 
+// Spin the Wheel: a spin is earned by buying from a qualifying category
+// (lollies / snacks / biscuits / bakery) or any shop of $50+. Prizes are
+// weighted; coupon prizes drop into My Coupons with the standard 7-day expiry.
+export const WHEEL_PRIZES = [
+  { id: 'disc5', label: '5% Off', img: '🏷️', color: '#0057b8', weight: 25, type: 'coupon', title: '5% Off Next Purchase' },
+  { id: 'drink', label: 'Free Drink', img: '🥤', color: '#16a085', weight: 20, type: 'coupon', title: 'Free Drink (600ml)' },
+  { id: 'double', label: 'Double Points', img: '⚡', color: '#f39c12', weight: 20, type: 'double' },
+  { id: 'gift', label: 'Mystery Gift', img: '🎁', color: '#8e44ad', weight: 10, type: 'coupon', title: 'Mystery Gift — reveal in store' },
+  { id: 'entries', label: '5 Draw Entries', img: '🎟️', color: '#c0392b', weight: 25, type: 'entries', value: 5 },
+]
+export const WHEEL_QUALIFYING_CATS = ['lollies', 'snacks', 'biscuits', 'bakery']
+export const WHEEL_MIN_SPEND = 50
+
+function drawWheelPrize() {
+  const total = WHEEL_PRIZES.reduce((s, p) => s + p.weight, 0)
+  let roll = Math.random() * total
+  for (const p of WHEEL_PRIZES) { roll -= p.weight; if (roll <= 0) return p }
+  return WHEEL_PRIZES[0]
+}
+
+function addCoupon(uid, { title, img, color }) {
+  const now = new Date()
+  const coupons = read(K.pendingCoupons, [])
+  coupons.push({
+    id: Date.now() + Math.floor(Math.random() * 1000), uid, rewardId: 'wheel_prize', title,
+    cat: 'Wheel Prize', cost: 0, img, color: color || '#0057b8',
+    status: 'active', redeemedAt: now.toISOString(), activatedAt: now.toISOString(),
+    expiresAt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(), createdAt: Date.now(),
+  })
+  saveCollection(K.pendingCoupons, coupons)
+}
+
 function updateMission(c, todayStr) {
   const start = c.missionStart ? new Date(c.missionStart) : null
   const expired = !start || (new Date(todayStr) - start) / 86400000 >= MISSION_WINDOW_DAYS
@@ -177,7 +209,9 @@ export function createLocalProvider() {
       const fuelType = purchaseData.fuelType || 'ULP 91'
       const amount = purchaseData.amount || 0
       const litres = purchaseData.litres || 0
-      const points = Math.floor(amount) // 1 point per dollar
+      let points = Math.floor(amount) // 1 point per dollar
+      let doubled = false
+      if (c.doublePointsNext && points > 0) { points *= 2; c.doublePointsNext = false; doubled = true } // wheel prize
 
       // Advance the 2-week fuel mission (may draw and award a mystery prize)
       const missionPrize = updateMission(c, today)
@@ -193,13 +227,58 @@ export function createLocalProvider() {
         date: today,
         amount,
         points,
-        type: `Fuel (${fuelType})`,
+        type: `Fuel (${fuelType})${doubled ? ' · 2x points' : ''}`,
         litres,
       }, ...(c.transactions || [])]
 
       syncDerived(c); saveCustomers(customers)
 
       return { ok: true, customer: c, pointsEarned: points, missionPrize, missionCount: c.missionCount }
+    },
+
+    // Record a shop (non-fuel) purchase — earns points and may earn a wheel
+    // spin: qualifying category (lollies/snacks/biscuits/bakery) or $50+ spend.
+    async recordShopPurchase(uid, { amount = 0, categories = [], store } = {}) {
+      const customers = getCustomers(); const c = customers[uid]
+      if (!c) return { ok: false, message: 'Customer not found' }
+
+      const today = new Date().toISOString().split('T')[0]
+      let points = Math.floor(amount)
+      let doubled = false
+      if (c.doublePointsNext && points > 0) { points *= 2; c.doublePointsNext = false; doubled = true }
+
+      const qualifies = amount >= WHEEL_MIN_SPEND ||
+        categories.some((cat) => WHEEL_QUALIFYING_CATS.includes(String(cat).toLowerCase()))
+      if (qualifies) c.wheelSpins = (c.wheelSpins || 0) + 1
+
+      c.points += points
+      c.lifetimePoints += points
+      c.transactions = [{
+        id: Date.now(), store: store || 'Pearl Energy Shop', date: today, amount, points,
+        type: `Shop${doubled ? ' · 2x points' : ''}${qualifies ? ' · 🎡 spin earned' : ''}`,
+      }, ...(c.transactions || [])]
+
+      syncDerived(c); saveCustomers(customers)
+      return { ok: true, customer: c, pointsEarned: points, spinEarned: qualifies, wheelSpins: c.wheelSpins || 0 }
+    },
+
+    // Spend one wheel spin → draw and apply a prize.
+    async spinWheel(uid) {
+      const customers = getCustomers(); const c = customers[uid]
+      if (!c) return { ok: false, message: 'Customer not found' }
+      if (!c.wheelSpins) return { ok: false, message: 'No spins available yet' }
+
+      c.wheelSpins -= 1
+      const prize = drawWheelPrize()
+      if (prize.type === 'coupon') {
+        addCoupon(uid, { title: prize.title, img: prize.img, color: prize.color })
+      } else if (prize.type === 'double') {
+        c.doublePointsNext = true
+      } else if (prize.type === 'entries') {
+        c.monthlyDrawEntries = (c.monthlyDrawEntries || 0) + prize.value
+      }
+      syncDerived(c); saveCustomers(customers)
+      return { ok: true, prize, wheelSpins: c.wheelSpins }
     },
 
     subscribeOffers(cb) { return subscribeKey(K.offers, cb) },

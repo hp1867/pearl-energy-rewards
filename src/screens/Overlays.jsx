@@ -16,6 +16,8 @@ import { addToWallet } from '../services/wallet'
 import { data } from '../services/data'
 import { amenityFilters, transactions, stationFuelRows, tiers } from '../data/mockData'
 import { tierTheme } from '../theme/tiers'
+import { WHEEL_PRIZES } from '../services/localProvider'
+import { PearlMark } from '../components/Brand'
 
 const AMENITY_ICON = { Coffee, 'Car Wash': Car, ATM: Banknote, 'Hot Food': UtensilsCrossed, 'EV Charging': Zap }
 
@@ -662,6 +664,115 @@ export function HelpSupport() {
               <div style={{ fontSize: 12, color: 'var(--muted)' }}>Staff at all 170+ stores can help with your membership</div>
             </div>
           </div>
+        </div>
+      </div>
+    </Shell>
+  )
+}
+
+/* ---------------- Spin the Wheel ---------------- */
+const SEG = 360 / WHEEL_PRIZES.length
+
+export function SpinWheel() {
+  const { member, notify, mode } = useApp()
+  const [rotation, setRotation] = useState(0)
+  const [spinning, setSpinning] = useState(false)
+  const [won, setWon] = useState(null)
+  const spins = member.wheelSpins || 0
+
+  const spin = async () => {
+    if (spinning || !data.spinWheel) return
+    const res = await data.spinWheel(member.uid)
+    if (!res.ok) { notify(res.message); return }
+    const idx = Math.max(0, WHEEL_PRIZES.findIndex((p) => p.id === res.prize.id))
+    // land the winning segment's centre under the top pointer, after 5 full turns
+    setWon(null)
+    setSpinning(true)
+    setRotation((r) => r - (r % 360) + 5 * 360 + (360 - (idx * SEG + SEG / 2)))
+    setTimeout(() => {
+      setSpinning(false)
+      setWon(res.prize)
+      if (res.prize.type === 'coupon') notify(`🎉 You won: ${res.prize.title}! Active in My Coupons for 7 days.`)
+      else if (res.prize.type === 'double') notify('⚡ Double points active — your next purchase earns 2x!')
+      else notify(`🎟️ +${res.prize.value} entries in this month's draw!`)
+    }, 4300)
+  }
+
+  // demo-only: simulate the POS recording a qualifying $50 shop
+  const demoShop = async () => {
+    if (!data.recordShopPurchase) return
+    const r = await data.recordShopPurchase(member.uid, { amount: 50, categories: ['snacks'], store: 'Demo Shop' })
+    if (r.ok) notify('🎡 $50 shop recorded — spin earned!')
+  }
+
+  const conic = WHEEL_PRIZES.map((p, i) => `${p.color} ${i * SEG}deg ${(i + 1) * SEG}deg`).join(', ')
+
+  return (
+    <Shell title="Spin & Win">
+      <div style={{ padding: '8px 20px 0', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <p style={{ fontSize: 13, color: 'var(--muted)', textAlign: 'center', marginBottom: 6 }}>
+          {spins > 0 ? `You have ${spins} spin${spins === 1 ? '' : 's'} ready 🎉` : 'No spins yet — earn one below'}
+        </p>
+
+        {/* status chips */}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 14 }}>
+          {member.doublePointsNext && <span className="pill" style={{ background: '#fff4e5', color: '#b9742f' }}>⚡ 2x points on your next purchase</span>}
+          {(member.monthlyDrawEntries || 0) > 0 && <span className="pill" style={{ background: '#fdecea', color: '#c0392b' }}>🎟️ {member.monthlyDrawEntries} monthly draw entries</span>}
+        </div>
+
+        {/* the wheel */}
+        <div style={{ position: 'relative', width: 280, height: 280, marginBottom: 8 }}>
+          {/* pointer */}
+          <div style={{ position: 'absolute', top: -6, left: '50%', transform: 'translateX(-50%)', zIndex: 3, width: 0, height: 0, borderLeft: '14px solid transparent', borderRight: '14px solid transparent', borderTop: '22px solid var(--ink)' }} />
+          <motion.div animate={{ rotate: rotation }} transition={{ duration: 4.2, ease: [0.12, 0.68, 0.15, 1] }}
+            style={{ width: '100%', height: '100%', borderRadius: '50%', background: `conic-gradient(${conic})`, border: '10px solid #fff', boxShadow: '0 18px 50px rgba(8,22,48,0.25), inset 0 0 30px rgba(0,0,0,0.15)', position: 'relative' }}>
+            {WHEEL_PRIZES.map((p, i) => (
+              <div key={p.id} style={{ position: 'absolute', left: '50%', top: '50%', transform: `rotate(${i * SEG + SEG / 2}deg) translateY(-92px)`, transformOrigin: '0 0' }}>
+                <div style={{ transform: 'translate(-50%, -50%)', textAlign: 'center', width: 76 }}>
+                  <div style={{ fontSize: 24 }}>{p.img}</div>
+                  <div style={{ fontSize: 9.5, fontWeight: 800, color: '#fff', textShadow: '0 1px 3px rgba(0,0,0,0.5)', lineHeight: 1.15, marginTop: 2 }}>{p.label}</div>
+                </div>
+              </div>
+            ))}
+          </motion.div>
+          {/* centre cap */}
+          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 2 }}>
+            <PearlMark size={54} />
+          </div>
+        </div>
+
+        <button className="btn" onClick={spin} disabled={spinning || spins === 0}
+          style={{ width: '100%', maxWidth: 300, opacity: spinning || spins === 0 ? 0.6 : 1, background: 'linear-gradient(135deg, #3b2f8f, #5b4bd4)', boxShadow: '0 10px 28px rgba(91,75,212,0.35)' }}>
+          {spinning ? 'Spinning… 🤞' : spins > 0 ? '🎡 SPIN THE WHEEL' : 'No spins available'}
+        </button>
+
+        {/* prize reveal */}
+        {won && (
+          <motion.div initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 240, damping: 16 }}
+            style={{ marginTop: 16, width: '100%', maxWidth: 300, background: '#fff', borderRadius: 18, padding: 18, textAlign: 'center', boxShadow: 'var(--shadow-md)', border: `2px solid ${won.color}44` }}>
+            <div style={{ fontSize: 40 }}>{won.img}</div>
+            <div style={{ fontWeight: 800, fontSize: 17, marginTop: 6 }}>You won: {won.title || won.label}!</div>
+            <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 4 }}>
+              {won.type === 'coupon' ? 'Saved to My Coupons — active for 7 days, auto-applies at POS.'
+                : won.type === 'double' ? 'Your next purchase automatically earns double points.'
+                : 'Winners are drawn at the end of each month. Good luck!'}
+            </div>
+          </motion.div>
+        )}
+
+        {/* how to earn */}
+        <div style={{ marginTop: 18, width: '100%', background: '#fff', borderRadius: 18, padding: 16, boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>How to earn a spin</div>
+          <div style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.6 }}>
+            🍬 Buy any <b>lollies, snacks, biscuits or bakery</b> item, or<br />
+            🛒 Spend <b>$50 or more</b> in one shop.<br />
+            <span style={{ fontSize: 12, color: 'var(--muted)' }}>Every qualifying purchase = 1 spin, applied automatically at the register.</span>
+          </div>
+          {mode === 'local' && (
+            <button onClick={demoShop} className="btn ghost" style={{ marginTop: 12, fontSize: 13 }}>
+              🧪 Demo: record a $50 shop (earn a spin)
+            </button>
+          )}
         </div>
       </div>
     </Shell>

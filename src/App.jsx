@@ -10,7 +10,7 @@ import RewardsScreen from './screens/RewardsScreen'
 import ProfileScreen from './screens/ProfileScreen'
 import BottomNav from './components/BottomNav'
 import Toast from './components/Toast'
-import { FuelPrices, StoreLocator, WalletCard, ScanModal, Receipts, Notifications, MyCoupons, EditProfile, HelpSupport, TiersInfo } from './screens/Overlays'
+import { FuelPrices, StoreLocator, WalletCard, ScanModal, Receipts, Notifications, MyCoupons, EditProfile, HelpSupport, TiersInfo, SpinWheel } from './screens/Overlays'
 
 const TABS = {
   home: HomeScreen,
@@ -31,6 +31,7 @@ const OVERLAYS = {
   editprofile: EditProfile,
   help: HelpSupport,
   tiers: TiersInfo,
+  wheel: SpinWheel,
 }
 
 export default function App() {

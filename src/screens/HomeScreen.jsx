@@ -152,6 +152,25 @@ export default function HomeScreen() {
           </Card3D>
         </div>
 
+        {/* Spin & Win banner — spins are earned via qualifying shop purchases */}
+        <div style={{ padding: '0 20px', marginTop: 14 }}>
+          <button onClick={() => setOverlay('wheel')}
+            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, borderRadius: 18, padding: '14px 16px', background: 'linear-gradient(135deg, #3b2f8f 0%, #5b4bd4 55%, #7c6cf0 100%)', color: '#fff', boxShadow: '0 10px 30px rgba(91,75,212,0.32)', textAlign: 'left' }}>
+            <span style={{ fontSize: 26 }}>🎡</span>
+            <span style={{ flex: 1 }}>
+              <span style={{ display: 'block', fontWeight: 800, fontSize: 14.5 }}>Spin & Win</span>
+              <span style={{ display: 'block', fontSize: 11.5, opacity: 0.88, marginTop: 2 }}>
+                {(member.wheelSpins || 0) > 0
+                  ? `${member.wheelSpins} spin${member.wheelSpins === 1 ? '' : 's'} ready — tap to play!`
+                  : 'Buy snacks, lollies, biscuits or bakery — or spend $50 — to earn a spin'}
+              </span>
+            </span>
+            {(member.wheelSpins || 0) > 0 && (
+              <span style={{ background: '#fff', color: '#5b4bd4', fontWeight: 800, fontSize: 12, padding: '4px 10px', borderRadius: 999 }}>{member.wheelSpins}</span>
+            )}
+          </button>
+        </div>
+
         {/* Featured Offers */}
         <div className="section-title"><h3>Featured Offers</h3><button onClick={() => setTab('offers')}>See all</button></div>
         <div className="h-scroll fade-mask">

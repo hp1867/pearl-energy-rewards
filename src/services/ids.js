@@ -52,6 +52,10 @@ export function buildNewCustomer({ firstName, lastName, email, mobile, dob, uid 
     missionStart: null,
     missionCount: 0,
     missionRewarded: false,
+    // Spin the Wheel (earned via qualifying shop purchases)
+    wheelSpins: 0,
+    monthlyDrawEntries: 0,
+    doublePointsNext: false,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   }
