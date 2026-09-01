@@ -2,6 +2,17 @@
 
 Status: production baseline, schema version `1`
 
+## Provisioned Firebase environment
+
+- Firebase project: `pearl-energy-app`
+- Firestore database: `(default)`, Native mode, Standard edition
+- Region: `australia-southeast1` (Sydney)
+- Accidental database deletion protection: enabled
+- Live now: security rules, composite indexes and index exemptions
+- Billing-gated: Cloud Functions and the TTL policies declared in
+  `firestore.indexes.json`. Redeploy after upgrading the project; until then,
+  expired operational documents require manual or application-managed cleanup.
+
 This design treats points as a financial-style liability. The mobile document is
 a fast read projection; it is not the source of truth. Every balance change is
 made by trusted server code and recorded in an append-only ledger in the same
@@ -165,4 +176,3 @@ balances and customer projections without trusting cached totals.
 - Rules field allowlists: <https://firebase.google.com/docs/firestore/security/rules-fields>
 - Index definition and TTL: <https://firebase.google.com/docs/reference/firestore/indexes>
 - Firestore locations: <https://firebase.google.com/docs/firestore/locations>
-
