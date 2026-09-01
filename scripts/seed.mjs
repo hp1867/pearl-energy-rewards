@@ -1,51 +1,108 @@
-// Seed Firestore catalogs (offers, rewards, fuelPrices) so the app shows live data.
+// Idempotent baseline seed for Pearl Energy's catalogs and loyalty program.
 //
-// Usage:
-//   1) npm i -D firebase-admin
-//   2) Firebase console → Project settings → Service accounts → Generate new private key
-//      → save it as scripts/serviceAccount.json  (DO NOT commit this file)
-//   3) node scripts/seed.mjs
+// Live usage (recommended):
+//   set GOOGLE_APPLICATION_CREDENTIALS=C:\secure\pearl-seed-service-account.json
+//   npm run firebase:seed
 //
-import { readFile } from 'node:fs/promises'
-import { initializeApp, cert } from 'firebase-admin/app'
-import { getFirestore } from 'firebase-admin/firestore'
+// Emulator usage:
+//   set FIRESTORE_EMULATOR_HOST=127.0.0.1:8080
+//   npm run firebase:seed
+//
+// The service identity should have only the permissions required to seed these
+// controlled collections. Never commit its credential file.
+import { access, readFile } from 'node:fs/promises'
+import { applicationDefault, cert, getApps, initializeApp } from 'firebase-admin/app'
+import { FieldValue, getFirestore } from 'firebase-admin/firestore'
+import {
+  fuelTypes, menuGroups, menuItems, notifications, offers, rewards, stations,
+} from '../src/data/mockData.js'
 
-const sa = JSON.parse(await readFile(new URL('./serviceAccount.json', import.meta.url)))
-initializeApp({ credential: cert(sa) })
-const db = getFirestore()
+const PROJECT_ID = process.env.GCLOUD_PROJECT || 'pearl-energy-app'
+const SCHEMA_VERSION = 1
+const serviceAccountUrl = new URL('./serviceAccount.json', import.meta.url)
 
-// keep these in sync with src/data/mockData.js
-const offers = [
-  { id: '1', cat: 'Coffee Deals', title: 'Barista Coffee + Muffin', sub: 'Any size, any day', price: '$6.50', img: '☕', accent: '#7a4a2b', expiry: '30 Jun 2026', tag: 'POPULAR' },
-  { id: '2', cat: 'Fuel Deals', title: '6¢ off per litre', sub: 'Weekend fuel special', price: 'Save big', img: '⛽', accent: '#0057B8', expiry: '08 Jun 2026', tag: 'ENDING SOON' },
-  { id: '3', cat: 'Food Deals', title: 'Meal Combo', sub: 'Burger + Chips + Drink', price: '$11.90', img: '🍔', accent: '#c0392b', expiry: '21 Jun 2026', tag: 'COMBO' },
-  { id: '4', cat: 'Imported Products', title: 'Imported Snack Box', sub: 'Japan & Korea range', price: '$14.00', img: '🍫', accent: '#6c3483', expiry: '15 Jul 2026', tag: 'NEW' },
-  { id: '5', cat: 'Seasonal Specials', title: 'Winter Energy Bundle', sub: '2 Energy drinks + bar', price: '$8.50', img: '⚡', accent: '#1f7be0', expiry: '31 Jul 2026', tag: 'SEASONAL' },
-]
-const rewards = [
-  { id: '1', cat: 'Free Coffee', title: 'Free Barista Coffee', cost: 500, img: '☕', color: '#7a4a2b' },
-  { id: '2', cat: 'Fuel Discount', title: '$10 Fuel Voucher', cost: 1000, img: '⛽', color: '#0057B8' },
-  { id: '3', cat: 'Food Discount', title: '$8 Off Any Meal', cost: 800, img: '🍔', color: '#c0392b' },
-  { id: '4', cat: 'Merchandise', title: 'Pearl Drink Bottle', cost: 1500, img: '🥤', color: '#16a085' },
-  { id: '5', cat: 'Partner Rewards', title: '$25 Movie Voucher', cost: 2500, img: '🎬', color: '#6c3483' },
-]
-const fuelPrices = [
-  { id: 'ulp91', code: 'ULP 91', price: 1.879, trend: -0.04, color: '#27ae60' },
-  { id: 'p95', code: 'Premium 95', price: 1.989, trend: 0.02, color: '#0057B8' },
-  { id: 'p98', code: 'Premium 98', price: 2.079, trend: -0.01, color: '#6c3483' },
-  { id: 'diesel', code: 'Diesel', price: 1.949, trend: 0.03, color: '#34495e' },
-  { id: 'lpg', code: 'LPG', price: 0.929, trend: -0.02, color: '#e67e22' },
-]
-
-async function seed(name, rows) {
-  const batch = db.batch()
-  rows.forEach((r) => batch.set(db.collection(name).doc(r.id), r))
-  await batch.commit()
-  console.log(`✓ seeded ${rows.length} → ${name}`)
+async function credentials() {
+  if (process.env.FIRESTORE_EMULATOR_HOST) return { projectId: PROJECT_ID }
+  try {
+    await access(serviceAccountUrl)
+    return {
+      projectId: PROJECT_ID,
+      credential: cert(JSON.parse(await readFile(serviceAccountUrl, 'utf8'))),
+    }
+  } catch {
+    return { projectId: PROJECT_ID, credential: applicationDefault() }
+  }
 }
 
-await seed('offers', offers)
-await seed('rewards', rewards)
-await seed('fuelPrices', fuelPrices)
-console.log('Done. Edit any doc in the Firebase console and the app updates instantly.')
-process.exit(0)
+if (!getApps().length) initializeApp(await credentials())
+const db = getFirestore()
+
+const nowFields = () => ({
+  schemaVersion: SCHEMA_VERSION,
+  updatedAt: FieldValue.serverTimestamp(),
+})
+
+const collections = {
+  offers: offers.map((row) => ({ ...row, status: 'active', ...nowFields() })),
+  rewards: rewards.map((row) => ({ ...row, status: 'active', ...nowFields() })),
+  fuelPrices: fuelTypes.map((row) => ({ ...row, status: 'active', currency: 'AUD', ...nowFields() })),
+  menu: menuItems.map((row) => ({ ...row, status: row.avail === false ? 'inactive' : 'active', ...nowFields() })),
+  categories: menuGroups.map((row) => ({ id: row.key, ...row, status: 'active', ...nowFields() })),
+  stations: stations.map((row) => ({ ...row, status: 'active', ...nowFields() })),
+  notifications: notifications.map((row) => ({ ...row, audience: 'all', status: 'published', ...nowFields() })),
+}
+
+const writer = db.bulkWriter()
+writer.onWriteError((error) => {
+  if (error.failedAttempts < 3) return true
+  console.error(`Seed write failed for ${error.documentRef.path}`, error)
+  return false
+})
+
+for (const [collectionName, rows] of Object.entries(collections)) {
+  for (const row of rows) {
+    const id = String(row.id)
+    writer.set(db.collection(collectionName).doc(id), row, { merge: true })
+  }
+}
+
+writer.set(db.collection('loyaltyPrograms').doc('pearl-rewards-au'), {
+  programId: 'pearl-rewards-au',
+  tenantId: 'pearl-energy',
+  version: 1,
+  status: 'active',
+  currency: 'AUD',
+  pointsNumerator: 1,
+  pointsDenominator: 1,
+  rounding: 'floor',
+  excludedCategories: ['tobacco', 'lottery', 'gift-card', 'cash-out'],
+  tiers: [
+    { name: 'Blue', minimumLifetimePoints: 0 },
+    { name: 'Silver', minimumLifetimePoints: 1000 },
+    { name: 'Gold', minimumLifetimePoints: 2500 },
+    { name: 'Diamond', minimumLifetimePoints: 5000 },
+    { name: 'Immortal', minimumLifetimePoints: 10000 },
+  ],
+  effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
+  schemaVersion: SCHEMA_VERSION,
+  createdAt: FieldValue.serverTimestamp(),
+  updatedAt: FieldValue.serverTimestamp(),
+}, { merge: true })
+
+writer.set(db.collection('system').doc('schema'), {
+  currentVersion: SCHEMA_VERSION,
+  minimumReaderVersion: SCHEMA_VERSION,
+  minimumWriterVersion: SCHEMA_VERSION,
+  updatedAt: FieldValue.serverTimestamp(),
+}, { merge: true })
+
+writer.set(db.collection('schemaMigrations').doc('0001-production-baseline'), {
+  migrationId: '0001-production-baseline',
+  version: SCHEMA_VERSION,
+  status: 'complete',
+  checksum: 'pearl-energy-schema-v1',
+  appliedAt: FieldValue.serverTimestamp(),
+}, { merge: true })
+
+await writer.close()
+console.log('Pearl Energy Firestore baseline seeded successfully.')

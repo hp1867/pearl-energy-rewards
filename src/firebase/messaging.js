@@ -1,7 +1,14 @@
 // Firebase Cloud Messaging (push) — enabled only when Firebase + a VAPID key
 // are configured. Until then enablePush() is a graceful no-op.
 import { integrations } from '../config/integrations'
-import { firebaseConfig } from './config'
+import { auth, db, firebaseConfig } from './config'
+import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore'
+
+async function tokenDocumentId(token) {
+  const bytes = new TextEncoder().encode(token)
+  const digest = await crypto.subtle.digest('SHA-256', bytes)
+  return Array.from(new Uint8Array(digest), (value) => value.toString(16).padStart(2, '0')).join('')
+}
 
 export async function enablePush() {
   if (!integrations.fcm.ready) return { ok: false, message: 'Push not configured yet (needs Firebase + VAPID key)' }
@@ -18,9 +25,24 @@ export async function enablePush() {
   const messaging = getMessaging()
   const token = await getToken(messaging, { vapidKey: integrations.fcm.vapidKey, serviceWorkerRegistration: reg })
 
+  if (auth.currentUser && token) {
+    const deviceId = await tokenDocumentId(token)
+    const ref = doc(db, 'customers', auth.currentUser.uid, 'devices', deviceId)
+    const existing = await getDoc(ref)
+    const common = {
+      customerUid: auth.currentUser.uid,
+      token,
+      platform: 'web',
+      notificationsEnabled: true,
+      lastSeenAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }
+    if (existing.exists()) await updateDoc(ref, common)
+    else await setDoc(ref, { ...common, createdAt: serverTimestamp() })
+  }
+
   // surface foreground messages to the app
   onMessage(messaging, (payload) => window.dispatchEvent(new CustomEvent('pe-push', { detail: payload })))
 
-  // NOTE: in production, save `token` to the customer's record so the backend can target them.
   return { ok: true, message: 'Push notifications enabled 🔔', token }
 }

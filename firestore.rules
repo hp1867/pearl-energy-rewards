@@ -1,50 +1,176 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    function signedIn() { return request.auth != null; }
-    function isAdmin()  { return signedIn() && request.auth.token.admin == true; }
-    function isStaff()  { return signedIn() && request.auth.token.staff == true; }
-
-    // ---------------- Customer records ----------------
-    match /customers/{uid} {
-      // Customers read their own record; staff/admins read any
-      // (powers the Customer Lookup feature).
-      allow read: if signedIn() && (request.auth.uid == uid || isStaff() || isAdmin());
-
-      // Signup: a user may create their own record, starting at zero points.
-      allow create: if signedIn() && request.auth.uid == uid
-        && request.resource.data.uid == uid
-        && request.resource.data.points == 0
-        && request.resource.data.lifetimePoints == 0;
-
-      // Self-service updates may never INCREASE the balance or touch
-      // identity / tier fields. Points are only ever added by the POS or an
-      // admin session — this blocks customers from awarding themselves
-      // points by calling the Firestore API directly. Redemptions (which
-      // only deduct points) still work from the app.
-      allow update: if signedIn() && request.auth.uid == uid
-        && request.resource.data.points <= resource.data.points
-        && request.resource.data.lifetimePoints == resource.data.lifetimePoints
-        && request.resource.data.tier == resource.data.tier
-        && request.resource.data.customerNumber == resource.data.customerNumber
-        && request.resource.data.membershipId == resource.data.membershipId
-        && request.resource.data.uid == resource.data.uid;
-
-      // Admins (POS backend / admin dashboard) have full write access,
-      // including adding points. Set the claim with the Admin SDK:
-      // setCustomUserClaims(uid, { admin: true })
-      allow write: if isAdmin();
+    function signedIn() {
+      return request.auth != null;
     }
 
-    // ---------------- Live catalogs ----------------
-    // Anyone signed in can read; only admins can write.
-    match /offers/{id}        { allow read: if signedIn(); allow write: if isAdmin(); }
-    match /rewards/{id}       { allow read: if signedIn(); allow write: if isAdmin(); }
-    match /fuelPrices/{id}    { allow read: if signedIn(); allow write: if isAdmin(); }
-    match /menu/{id}          { allow read: if signedIn(); allow write: if isAdmin(); }
-    match /categories/{id}    { allow read: if signedIn(); allow write: if isAdmin(); }
-    match /stations/{id}      { allow read: if signedIn(); allow write: if isAdmin(); }
-    match /notifications/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
+    function owns(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && 'admin' in request.auth.token
+        && request.auth.token.admin == true;
+    }
+
+    function isStaff() {
+      return signedIn()
+        && (('staff' in request.auth.token && request.auth.token.staff == true) || isAdmin());
+    }
+
+    function validOptionalString(data, field, maxLength) {
+      return !(field in data)
+        || data[field] == null
+        || (data[field] is string && data[field].size() <= maxLength);
+    }
+
+    function validCustomerProfile(data) {
+      return data.firstName is string
+        && data.firstName.size() > 0
+        && data.firstName.size() <= 80
+        && data.lastName is string
+        && data.lastName.size() > 0
+        && data.lastName.size() <= 80
+        && data.name is string
+        && data.name.size() <= 170
+        && validOptionalString(data, 'mobile', 32)
+        && validOptionalString(data, 'dob', 10);
+    }
+
+    // Customer is a read projection. Identity, balances, tiers, missions and
+    // loyalty state are written only by trusted Cloud Functions/Admin SDK.
+    match /customers/{uid} {
+      allow get: if owns(uid) || isStaff();
+      allow list: if isStaff();
+      allow create, delete: if false;
+      allow update: if owns(uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'firstName', 'lastName', 'name', 'mobile', 'dob', 'preferences',
+          'security', 'updatedAt'
+        ])
+        && validCustomerProfile(request.resource.data)
+        && request.resource.data.updatedAt == request.time;
+
+      match /activity/{activityId} {
+        allow read: if owns(uid) || isStaff();
+        allow write: if false;
+      }
+
+      match /coupons/{couponId} {
+        allow read: if owns(uid) || isStaff();
+        allow write: if false;
+      }
+
+      match /devices/{deviceId} {
+        allow read: if owns(uid);
+        allow create: if owns(uid)
+          && request.resource.data.customerUid == uid
+          && request.resource.data.token is string
+          && request.resource.data.token.size() > 20
+          && request.resource.data.token.size() <= 4096
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.updatedAt == request.time;
+        allow update: if owns(uid)
+          && request.resource.data.customerUid == uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'token', 'platform', 'notificationsEnabled', 'lastSeenAt', 'updatedAt'
+          ])
+          && request.resource.data.token is string
+          && request.resource.data.token.size() > 20
+          && request.resource.data.token.size() <= 4096
+          && request.resource.data.updatedAt == request.time;
+        allow delete: if owns(uid);
+      }
+    }
+
+    // Server-authoritative financial and POS records. Even an admin UI cannot
+    // mutate these directly; every mutation must go through audited functions.
+    match /loyaltyAccounts/{accountId} {
+      allow read: if isStaff()
+        || (signedIn() && resource.data.customerUid == request.auth.uid);
+      allow write: if false;
+    }
+
+    match /loyaltyLedger/{entryId} {
+      allow read: if isStaff()
+        || (signedIn() && resource.data.customerUid == request.auth.uid);
+      allow write: if false;
+    }
+
+    match /transactions/{transactionId} {
+      allow read: if isStaff()
+        || (signedIn() && resource.data.customerUid == request.auth.uid);
+      allow write: if false;
+
+      match /items/{itemId} {
+        allow read: if isStaff()
+          || (signedIn()
+            && get(/databases/$(database)/documents/transactions/$(transactionId)).data.customerUid == request.auth.uid);
+        allow write: if false;
+      }
+    }
+
+    match /redemptions/{redemptionId} {
+      allow read: if isStaff()
+        || (signedIn() && resource.data.customerUid == request.auth.uid);
+      allow write: if false;
+    }
+
+    match /customerNotifications/{notificationId} {
+      allow read: if isStaff()
+        || (signedIn() && resource.data.customerUid == request.auth.uid);
+      allow update: if signedIn()
+        && resource.data.customerUid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'readAt'])
+        && request.resource.data.read == true
+        && request.resource.data.readAt == request.time;
+      allow create, delete: if false;
+    }
+
+    // Lookup keys are sensitive operational indexes. The mobile app identifies
+    // itself by its own auth UID; POS and server code use Admin SDK access.
+    match /customerNumbers/{number} { allow read: if isStaff(); allow write: if false; }
+    match /membershipCodes/{code} { allow read: if isStaff(); allow write: if false; }
+    match /authLinks/{uid} { allow read: if owns(uid) || isStaff(); allow write: if false; }
+
+    // Catalog data contains no secrets. Signed-in members can read it; only an
+    // authenticated admin claim can manage it from the admin application.
+    match /offers/{id}          { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /rewards/{id}         { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /fuelPrices/{id}      { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /menu/{id}            { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /categories/{id}      { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /stations/{id}        { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /notifications/{id}   { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /loyaltyPrograms/{id} { allow read: if signedIn(); allow write: if false; }
+    match /campaigns/{id}       { allow read: if signedIn(); allow write: if isAdmin(); }
+
+    match /campaignProgress/{id} {
+      allow read: if isStaff()
+        || (signedIn() && resource.data.customerUid == request.auth.uid);
+      allow write: if false;
+    }
+
+    match /staff/{uid} {
+      allow read: if owns(uid) || isAdmin();
+      allow write: if false;
+    }
+
+    // Operational collections are intentionally invisible to all client SDKs.
+    match /integrationEvents/{id} { allow read, write: if false; }
+    match /idempotencyKeys/{id}    { allow read, write: if false; }
+    match /outbox/{id}             { allow read, write: if false; }
+    match /auditLogs/{id}          { allow read, write: if false; }
+    match /schemaMigrations/{id}   { allow read, write: if false; }
+    match /system/{id}             { allow read, write: if false; }
+
+    // Default deny protects every collection added in the future until its
+    // access model is explicitly reviewed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
   }
 }

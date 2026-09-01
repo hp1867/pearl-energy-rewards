@@ -1,93 +1,199 @@
-// Real provider: Firebase Authentication + Cloud Firestore (live).
+// Production provider: Firebase Authentication, Cloud Firestore read models,
+// and server-authoritative callable functions for every loyalty mutation.
 import {
   onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword,
   signOut, GoogleAuthProvider, OAuthProvider, signInWithPopup,
 } from 'firebase/auth'
 import {
-  doc, setDoc, getDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, getDocs, runTransaction, addDoc, serverTimestamp,
+  collection, deleteDoc, doc, getDoc, getDocs, limit, onSnapshot, orderBy,
+  query, serverTimestamp, setDoc, updateDoc, where,
 } from 'firebase/firestore'
-import { auth, db } from '../firebase/config'
-import { buildNewCustomer, buildQrData, tierForPoints } from './ids'
-import { offers as seedOffers, rewards as seedRewards, fuelTypes as seedFuel, menuItems as seedMenu, menuGroups, notifications as seedNotifs, stations as seedStations } from '../data/mockData'
+import { httpsCallable } from 'firebase/functions'
+import { auth, db, functions } from '../firebase/config'
+import {
+  offers as seedOffers, rewards as seedRewards, fuelTypes as seedFuel,
+  menuItems as seedMenu, menuGroups, notifications as seedNotifs,
+  stations as seedStations,
+} from '../data/mockData'
 
-const seedCategories = menuGroups.map((g) => ({ id: g.key, ...g }))
-
-// admin "name" → Firestore collection
-const COLL = { offers: 'offers', rewards: 'rewards', fuel: 'fuelPrices', menu: 'menu', categories: 'categories', stations: 'stations', notifs: 'notifications' }
+const seedCategories = menuGroups.map((group) => ({ id: group.key, ...group }))
+const COLL = {
+  offers: 'offers', rewards: 'rewards', fuel: 'fuelPrices', menu: 'menu',
+  categories: 'categories', stations: 'stations', notifs: 'notifications',
+}
 const customerRef = (uid) => doc(db, 'customers', uid)
 
-async function ensureCustomerDoc(user, extra = {}) {
-  const ref = customerRef(user.uid)
-  const snap = await getDoc(ref)
-  if (snap.exists()) return snap.data()
-  const c = buildNewCustomer({ uid: user.uid, email: user.email, firstName: extra.firstName || user.displayName?.split(' ')[0], lastName: extra.lastName || user.displayName?.split(' ')[1], mobile: extra.mobile, dob: extra.dob })
-  await setDoc(ref, c)
-  return c
+function call(name, payload = {}) {
+  if (!functions) throw new Error('Firebase Functions is not configured')
+  return httpsCallable(functions, name)(payload).then((result) => result.data)
+}
+function dateValue(value) {
+  if (!value) return null
+  if (typeof value.toDate === 'function') return value.toDate()
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date
 }
 
-const liveCollection = (name, seed, cb) => onSnapshot(collection(db, name), (s) => cb(s.empty ? seed : s.docs.map((d) => ({ id: d.id, ...d.data() }))))
+function isoValue(value) {
+  const date = dateValue(value)
+  return date ? date.toISOString() : value
+}
+
+function activityRow(id, data) {
+  return {
+    id,
+    ...data,
+    date: data.date || dateValue(data.occurredAt)?.toLocaleDateString('en-AU', {
+      day: '2-digit', month: 'short', year: 'numeric',
+    }),
+  }
+}
+
+function couponRow(id, data) {
+  return {
+    id,
+    ...data,
+    redeemedAt: isoValue(data.redeemedAt),
+    activatedAt: isoValue(data.activatedAt),
+    expiresAt: isoValue(data.expiresAt),
+    usedAt: isoValue(data.usedAt),
+  }
+}
+
+async function ensureCustomerDoc(user, extra = {}) {
+  const existing = await getDoc(customerRef(user.uid))
+  if (existing.exists()) return existing.data()
+  await call('ensureCustomerProfile', {
+    firstName: extra.firstName || user.displayName?.split(' ')[0] || '',
+    lastName: extra.lastName || user.displayName?.split(' ').slice(1).join(' ') || '',
+    mobile: extra.mobile || '',
+    dob: extra.dob || '',
+  })
+  const created = await getDoc(customerRef(user.uid))
+  if (!created.exists()) throw new Error('Customer profile creation did not complete')
+  return created.data()
+}
+
+function liveCollection(name, seed, cb) {
+  return onSnapshot(
+    collection(db, name),
+    (snapshot) => cb(snapshot.empty ? seed : snapshot.docs.map((row) => ({ id: row.id, ...row.data() }))),
+    (error) => {
+      console.error(`Firestore subscription failed for ${name}`, error)
+      cb(seed)
+    },
+  )
+}
 
 export function createFirebaseProvider() {
   return {
     mode: 'firebase',
 
-    onAuth(cb) { return onAuthStateChanged(auth, (u) => cb(u ? { uid: u.uid, email: u.email } : null)) },
+    onAuth(cb) {
+      return onAuthStateChanged(auth, (user) => cb(user ? { uid: user.uid, email: user.email } : null))
+    },
 
     async signUp(fields) {
-      const cred = await createUserWithEmailAndPassword(auth, fields.email, fields.password)
-      return ensureCustomerDoc(cred.user, fields)
+      const credential = await createUserWithEmailAndPassword(auth, fields.email, fields.password)
+      return ensureCustomerDoc(credential.user, fields)
     },
+
     async signIn({ email, password }) {
-      const cred = await signInWithEmailAndPassword(auth, email, password)
-      return ensureCustomerDoc(cred.user)
+      const credential = await signInWithEmailAndPassword(auth, email, password)
+      return ensureCustomerDoc(credential.user)
     },
+
     async signInWithProvider(name) {
       const provider = name === 'apple' ? new OAuthProvider('apple.com') : new GoogleAuthProvider()
-      const cred = await signInWithPopup(auth, provider)
-      return ensureCustomerDoc(cred.user)
+      const credential = await signInWithPopup(auth, provider)
+      return ensureCustomerDoc(credential.user)
     },
+
     async signOutUser() { return signOut(auth) },
 
-    subscribeCustomer(uid, cb) { return onSnapshot(customerRef(uid), (snap) => cb(snap.exists() ? snap.data() : null)) },
-
-    async lookupCustomer(customerNumber) {
-      const q = query(collection(db, 'customers'), where('customerNumber', '==', String(customerNumber).trim()))
-      const res = await getDocs(q)
-      return res.empty ? null : res.docs[0].data()
+    subscribeCustomer(uid, cb) {
+      let customer = null
+      let transactions = []
+      const emit = () => cb(customer ? { ...customer, transactions } : null)
+      const unsubscribeCustomer = onSnapshot(customerRef(uid), (snapshot) => {
+        customer = snapshot.exists() ? snapshot.data() : null
+        emit()
+      })
+      const historyQuery = query(
+        collection(customerRef(uid), 'activity'),
+        orderBy('occurredAt', 'desc'),
+        limit(50),
+      )
+      const unsubscribeHistory = onSnapshot(historyQuery, (snapshot) => {
+        transactions = snapshot.docs.map((row) => activityRow(row.id, row.data()))
+        emit()
+      })
+      return () => { unsubscribeCustomer(); unsubscribeHistory() }
     },
 
-    // Update editable profile fields (identity/points fields stay untouched;
-    // firestore.rules also blocks them server-side)
+    async lookupCustomer(customerNumber) {
+      const lookup = query(
+        collection(db, 'customers'),
+        where('customerNumber', '==', String(customerNumber).trim()),
+        limit(1),
+      )
+      const result = await getDocs(lookup)
+      return result.empty ? null : result.docs[0].data()
+    },
+
     async updateProfile(uid, fields) {
+      if (auth.currentUser?.uid !== uid) throw new Error('Profile ownership check failed')
+      const existing = await getDoc(customerRef(uid))
+      if (!existing.exists()) return null
+      const current = existing.data()
       const allowed = {}
-      for (const k of ['firstName', 'lastName', 'mobile', 'dob', 'security']) {
-        if (fields[k] !== undefined) allowed[k] = fields[k]
+      for (const key of ['firstName', 'lastName', 'mobile', 'dob', 'security', 'preferences']) {
+        if (fields[key] !== undefined) allowed[key] = fields[key]
       }
-      const snap = await getDoc(customerRef(uid))
-      if (!snap.exists()) return null
-      const c = snap.data()
-      const first = allowed.firstName ?? c.firstName, last = allowed.lastName ?? c.lastName
-      await updateDoc(customerRef(uid), { ...allowed, name: `${first} ${last}`, updatedAt: Date.now() })
-      return { ...c, ...allowed }
+      const firstName = allowed.firstName ?? current.firstName
+      const lastName = allowed.lastName ?? current.lastName
+      await updateDoc(customerRef(uid), {
+        ...allowed,
+        name: `${firstName} ${lastName}`.trim(),
+        updatedAt: serverTimestamp(),
+      })
+      return { ...current, ...allowed, name: `${firstName} ${lastName}`.trim() }
     },
 
     async redeemReward(uid, reward) {
-      let result = { ok: false, message: 'Customer not found' }
-      await runTransaction(db, async (tx) => {
-        const ref = customerRef(uid); const snap = await tx.get(ref)
-        if (!snap.exists()) return
-        const c = snap.data()
-        if (c.points < reward.cost) { result = { ok: false, message: `Need ${reward.cost - c.points} more points` }; return }
-        const points = c.points - reward.cost
-        tx.update(ref, {
-          points, qrData: buildQrData(c.membershipId, c.customerNumber, points),
-          rewardsRedeemed: [{ id: Date.now(), title: reward.title, cost: reward.cost, at: new Date().toISOString() }, ...(c.rewardsRedeemed || [])],
-          updatedAt: Date.now(),
-        })
-        result = { ok: true, message: `🎉 Redeemed: ${reward.title}` }
-      })
-      return result
+      if (auth.currentUser?.uid !== uid) throw new Error('Reward ownership check failed')
+      return call('redeemReward', { rewardId: String(reward.id) })
     },
+
+    subscribePendingCoupons(uid, cb) {
+      const couponQuery = query(
+        collection(customerRef(uid), 'coupons'),
+        orderBy('createdAt', 'desc'),
+        limit(100),
+      )
+      return onSnapshot(couponQuery, (snapshot) => {
+        cb(snapshot.docs.map((row) => couponRow(row.id, row.data())))
+      })
+    },
+
+    async getPendingCoupons(uid) {
+      const couponQuery = query(
+        collection(customerRef(uid), 'coupons'),
+        orderBy('createdAt', 'desc'),
+        limit(100),
+      )
+      const snapshot = await getDocs(couponQuery)
+      return snapshot.docs.map((row) => couponRow(row.id, row.data()))
+    },
+
+    // Coupons are issued and changed by loyalty/POS services. These methods fail
+    // closed instead of letting a browser claim that a coupon was consumed.
+    async activatePendingCoupon() { return { ok: false, message: 'Coupon activation is controlled by POS' } },
+    async usePendingCoupon() { return { ok: false, message: 'Coupon redemption is controlled by POS' } },
+    async removePendingCoupon() { return { ok: false, message: 'Coupon history is retained for audit' } },
+    async recordFuelPurchase() { return { ok: false, message: 'Purchases are recorded by POS' } },
+    async recordShopPurchase() { return { ok: false, message: 'Purchases are recorded by POS' } },
+    async spinWheel() { return { ok: false, message: 'Server-side prize processing is not enabled yet' } },
 
     subscribeOffers(cb) { return liveCollection('offers', seedOffers, cb) },
     subscribeRewards(cb) { return liveCollection('rewards', seedRewards, cb) },
@@ -97,25 +203,42 @@ export function createFirebaseProvider() {
     subscribeStations(cb) { return liveCollection('stations', seedStations, cb) },
     subscribeNotifications(cb) { return liveCollection('notifications', seedNotifs, cb) },
 
-    // ---------- admin / write API ----------
     async adminUpsert(name, item) {
-      const coll = COLL[name] || name
-      const id = String(item.id || doc(collection(db, coll)).id)
-      const next = { ...item, id, updatedAt: Date.now() }
-      await setDoc(doc(db, coll, id), next)
-      return next
+      const collectionName = COLL[name] || name
+      const id = String(item.id || doc(collection(db, collectionName)).id)
+      const next = { ...item, id, schemaVersion: 1, updatedAt: serverTimestamp() }
+      await setDoc(doc(db, collectionName, id), next, { merge: true })
+      return { ...item, id, schemaVersion: 1 }
     },
-    async adminRemove(name, id) { await deleteDoc(doc(db, COLL[name] || name, String(id))) },
-    async adminListCustomers() { const s = await getDocs(collection(db, 'customers')); return s.docs.map((d) => d.data()) },
+
+    async adminRemove(name, id) {
+      await deleteDoc(doc(db, COLL[name] || name, String(id)))
+    },
+
+    async adminListCustomers() {
+      const snapshot = await getDocs(query(collection(db, 'customers'), limit(200)))
+      return snapshot.docs.map((row) => row.data())
+    },
+
     async adminAdjustPoints(uid, delta, meta = {}) {
-      await runTransaction(db, async (tx) => {
-        const ref = customerRef(uid); const snap = await tx.get(ref); if (!snap.exists()) return
-        const c = snap.data()
-        const points = c.points + delta, lifetimePoints = c.lifetimePoints + Math.max(0, delta)
-        const transactions = [{ id: Date.now(), store: meta.store || 'Admin adjustment', amount: meta.amount || 0, points: delta, date: new Date().toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' }), type: meta.type || 'Adjustment' }, ...(c.transactions || [])]
-        tx.update(ref, { points, lifetimePoints, tier: tierForPoints(lifetimePoints), qrData: buildQrData(c.membershipId, c.customerNumber, points), transactions, updatedAt: Date.now() })
+      return call('adminAdjustPoints', {
+        customerUid: uid,
+        deltaPoints: Number(delta),
+        reason: meta.store || meta.type || 'Admin adjustment',
+        countsTowardTier: meta.countsTowardTier === true,
       })
     },
-    async adminBroadcast(notif) { await addDoc(collection(db, 'notifications'), { ...notif, time: 'just now', createdAt: serverTimestamp() }) },
+
+    async adminBroadcast(notification) {
+      const ref = doc(collection(db, 'notifications'))
+      await setDoc(ref, {
+        ...notification,
+        id: ref.id,
+        time: 'just now',
+        schemaVersion: 1,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      })
+    },
   }
 }

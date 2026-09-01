@@ -1,29 +1,44 @@
-# Wallet pass backend (Cloud Functions)
+# Pearl Energy Cloud Functions
 
-Issues Apple / Google / Samsung wallet passes for membership cards. The mobile app
-calls these endpoints from `src/services/wallet.js` when `VITE_WALLET_API_URL` is set.
+The backend has two security domains:
 
-## Deploy
-```bash
-cd functions
+- callable loyalty functions: `ensureCustomerProfile`, `redeemReward`, and
+  `adminAdjustPoints`;
+- `posApi`, an authenticated and idempotent POS transaction ingestion endpoint.
+
+The existing `api` wallet-pass routes remain scaffolds until the required
+Apple/Google/Samsung credentials are supplied.
+
+Read `../docs/database/ARCHITECTURE.md` and
+`../docs/database/POS-CONTRACT.md` before changing data paths or the POS contract.
+
+## Local verification
+
+```powershell
 npm install
-firebase deploy --only functions      # needs `firebase login` + a Firebase project
-```
-Then set in the app's `.env`:
-```
-VITE_WALLET_API_URL=https://<region>-<project>.cloudfunctions.net/api
+npm test
 ```
 
-## Endpoints
-- `POST /passes/apple`   → `{ url }` to a signed `.pkpass`
-- `POST /passes/google`  → `{ url }` "Save to Google Wallet" link
-- `POST /passes/samsung` → `{ url }` Samsung Wallet link
+## Deployment
 
-Body: `{ customerNumber, membershipId, name, points, tier, qrData }`
+Cloud Functions deployment requires the Firebase Blaze plan. Configure budget
+alerts first, then store the POS secret in Secret Manager:
 
-## What you must provide (the parts that need your accounts)
-- **Apple:** Pass Type ID + signing certificate (Apple Developer Program). Generate/sign the `.pkpass` (e.g. with `passkit-generator`).
-- **Google:** Google Wallet API issuer account + service account key; build a loyalty class/object and return a signed JWT save link.
-- **Samsung:** Samsung Wallet partner onboarding + card template.
+```powershell
+npx firebase-tools functions:secrets:set POS_WEBHOOK_SECRET
+npx firebase-tools deploy --only functions
+```
 
-The handlers in `index.js` are stubbed with step-by-step TODOs at each integration point.
+Use at least 32 random bytes and never store this secret in `.env`, Firestore or Git.
+
+## Exported functions
+
+- `ensureCustomerProfile` — authenticated customer bootstrap with collision-safe IDs.
+- `redeemReward` — atomic balance debit, ledger, redemption and coupon issue.
+- `adminAdjustPoints` — admin-claim-only audited balance correction.
+- `posApi` — `POST /v1/pos/transactions` and `GET /health`.
+- `api` — wallet pass scaffolds under `/passes/apple`, `/passes/google`, and
+  `/passes/samsung`.
+
+The wallet handlers must verify Firebase ID tokens before production. Their
+current permissive CORS setting is development-only.

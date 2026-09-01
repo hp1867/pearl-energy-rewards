@@ -4,6 +4,7 @@
 import { initializeApp } from 'firebase/app'
 import { getAuth } from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
+import { getFunctions } from 'firebase/functions'
 
 const env = import.meta.env
 
@@ -24,11 +25,13 @@ export const isFirebaseConfigured = Boolean(
 let app = null
 let auth = null
 let db = null
+let functions = null
 
 if (isFirebaseConfigured) {
   app = initializeApp(firebaseConfig)
   auth = getAuth(app)
   db = getFirestore(app)
+  functions = getFunctions(app, env.VITE_FIREBASE_FUNCTIONS_REGION || 'australia-southeast1')
 }
 
-export { app, auth, db }
+export { app, auth, db, functions }

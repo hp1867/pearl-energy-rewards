@@ -194,10 +194,19 @@ export function createLocalProvider() {
       const customers = getCustomers(); const c = customers[uid]
       if (!c) return { ok: false, message: 'Customer not found' }
       if (c.points < reward.cost) return { ok: false, message: `Need ${reward.cost - c.points} more points` }
+      const now = new Date()
+      const coupon = {
+        id: Date.now(), uid, rewardId: reward.id, title: reward.title,
+        cat: reward.cat, cost: reward.cost, img: reward.img, color: reward.color,
+        status: 'active', redeemedAt: now.toISOString(), activatedAt: now.toISOString(),
+        expiresAt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        createdAt: Date.now(),
+      }
       c.points -= reward.cost
       c.rewardsRedeemed = [{ id: Date.now(), title: reward.title, cost: reward.cost, at: new Date().toISOString() }, ...(c.rewardsRedeemed || [])]
       syncDerived(c); saveCustomers(customers)
-      return { ok: true, message: `🎉 Redeemed: ${reward.title}`, customer: c }
+      saveCollection(K.pendingCoupons, [coupon, ...read(K.pendingCoupons, [])])
+      return { ok: true, message: `🎉 Redeemed: ${reward.title}`, customer: c, coupon }
     },
 
     // Record a fuel purchase — earns points and advances the 2-week Fuel Mission

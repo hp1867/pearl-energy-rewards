@@ -7,10 +7,18 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview --host"
+    "preview": "vite preview --host",
+    "test": "npm run test:functions",
+    "test:functions": "npm --prefix functions test",
+    "test:integration": "npx firebase-tools emulators:exec --only firestore \"npm --prefix functions run test:integration\"",
+    "test:rules": "npx firebase-tools emulators:exec --only firestore \"node --test tests/firestore.rules.test.mjs\"",
+    "firebase:emulators": "npx firebase-tools emulators:start",
+    "firebase:seed": "node scripts/seed.mjs",
+    "firebase:deploy:firestore": "npx firebase-tools deploy --only firestore",
+    "firebase:deploy:functions": "npx firebase-tools deploy --only functions"
   },
   "dependencies": {
-    "firebase": "^12.14.0",
+    "firebase": "^12.18.0",
     "framer-motion": "^11.3.8",
     "lucide-react": "^0.417.0",
     "qrcode.react": "^3.1.0",
@@ -19,7 +27,9 @@
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^6.0.3",
-    "vite": "^8.1.4"
+    "@firebase/rules-unit-testing": "^5.0.2",
+    "@vitejs/plugin-react": "^6.1.1",
+    "firebase-admin": "^14.3.0",
+    "vite": "^8.2.2"
   }
 }

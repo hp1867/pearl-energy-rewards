@@ -9,7 +9,16 @@
 
 import express from 'express'
 import cors from 'cors'
-import { onRequest } from 'firebase-functions/v2/https'
+import { HttpsError, onCall, onRequest } from 'firebase-functions/v2/https'
+import { defineSecret } from 'firebase-functions/params'
+import { DEFAULT_FUNCTION_REGION } from './src/constants.js'
+import { ensureCustomer } from './src/customerService.js'
+import { adjustPoints, redeemReward as redeemRewardService } from './src/loyaltyService.js'
+import { ValidationError } from './src/domain.js'
+import { createPosApp } from './src/posService.js'
+
+const region = process.env.FUNCTION_REGION || DEFAULT_FUNCTION_REGION
+const posWebhookSecret = defineSecret('POS_WEBHOOK_SECRET')
 
 const app = express()
 // SECURITY: replace origin:true with your real app domain(s) before go-live,
@@ -61,4 +70,47 @@ app.post('/passes/samsung', (req, res) => {
 
 app.get('/', (_req, res) => res.json({ service: 'pearl-energy passes', status: 'ok' }))
 
-export const api = onRequest(app)
+function callableError(error) {
+  if (error instanceof HttpsError) return error
+  if (error instanceof ValidationError) {
+    return new HttpsError('failed-precondition', error.message, { field: error.field || null })
+  }
+  console.error(error)
+  return new HttpsError('internal', 'The operation could not be completed')
+}
+
+export const ensureCustomerProfile = onCall({ region }, async (request) => {
+  if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in before creating a customer profile')
+  try {
+    return await ensureCustomer(request.auth, request.data || {})
+  } catch (error) {
+    throw callableError(error)
+  }
+})
+
+export const redeemReward = onCall({ region }, async (request) => {
+  if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in before redeeming a reward')
+  try {
+    return await redeemRewardService(request.auth.uid, request.data?.rewardId)
+  } catch (error) {
+    throw callableError(error)
+  }
+})
+
+export const adminAdjustPoints = onCall({ region }, async (request) => {
+  if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in before adjusting points')
+  if (request.auth.token.admin !== true) {
+    throw new HttpsError('permission-denied', 'An admin claim is required')
+  }
+  try {
+    return await adjustPoints(request.auth, request.data || {})
+  } catch (error) {
+    throw callableError(error)
+  }
+})
+
+export const api = onRequest({ region }, app)
+export const posApi = onRequest(
+  { region, secrets: [posWebhookSecret], timeoutSeconds: 60, memory: '256MiB' },
+  createPosApp(posWebhookSecret),
+)

@@ -1,0 +1,142 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "transactions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "customerUid", "order": "ASCENDING" },
+        { "fieldPath": "occurredAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "transactions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "storeId", "order": "ASCENDING" },
+        { "fieldPath": "businessDate", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "transactions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "source.provider", "order": "ASCENDING" },
+        { "fieldPath": "source.externalTransactionId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "loyaltyLedger",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "loyaltyAccountId", "order": "ASCENDING" },
+        { "fieldPath": "occurredAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "loyaltyLedger",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "customerUid", "order": "ASCENDING" },
+        { "fieldPath": "occurredAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "redemptions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "customerUid", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "redemptions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "expiresAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "offers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "startsAt", "order": "ASCENDING" },
+        { "fieldPath": "endsAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "customerNotifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "customerUid", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "customerNotifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "customerUid", "order": "ASCENDING" },
+        { "fieldPath": "read", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "outbox",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "availableAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "integrationEvents",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "source.provider", "order": "ASCENDING" },
+        { "fieldPath": "receivedAt", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": [
+    {
+      "collectionGroup": "integrationEvents",
+      "fieldPath": "expiresAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "idempotencyKeys",
+      "fieldPath": "expiresAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "outbox",
+      "fieldPath": "expiresAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "integrationEvents",
+      "fieldPath": "result",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "transactions",
+      "fieldPath": "source.rawPayloadHash",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "auditLogs",
+      "fieldPath": "metadata",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "outbox",
+      "fieldPath": "payload",
+      "indexes": []
+    }
+  ]
+}

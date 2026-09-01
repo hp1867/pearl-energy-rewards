@@ -17,18 +17,16 @@ export function AppProvider({ children }) {
   // Pending rewards (redeemed but not yet scanned at POS)
   const [pendingRewards, setPendingRewards] = useState([])
 
-  // Load persisted pending rewards when user logs in (merge, don't overwrite)
+  // Keep coupon state subscribed to the server projection. POS/reward services
+  // are authoritative; the browser never marks a coupon consumed on its own.
   useEffect(() => {
     if (!user) { setPendingRewards([]); return }
+    if (data.subscribePendingCoupons) {
+      return data.subscribePendingCoupons(user.uid, (rows) => setPendingRewards(rows || []))
+    }
     if (data.getPendingCoupons) {
       data.getPendingCoupons(user.uid).then(r => {
-        const persisted = r || []
-        setPendingRewards(prev => {
-          if (prev.length === 0) return persisted
-          const prevIds = new Set(prev.map(p => p.id))
-          const newPersisted = persisted.filter(p => !prevIds.has(p.id))
-          return [...prev, ...newPersisted]
-        })
+        setPendingRewards(r || [])
       }).catch(() => {})
     }
   }, [user])
@@ -50,13 +48,16 @@ export function AppProvider({ children }) {
     return data.subscribeCustomer(user.uid, setMember)
   }, [user])
 
-  useEffect(() => data.subscribeOffers(setOffers), [])
-  useEffect(() => data.subscribeRewards(setRewards), [])
-  useEffect(() => data.subscribeFuel(setFuelPrices), [])
-  useEffect(() => data.subscribeMenu(setMenu), [])
-  useEffect(() => data.subscribeCategories(setCategories), [])
-  useEffect(() => data.subscribeStations(setStations), [])
-  useEffect(() => data.subscribeNotifications(setNotifications), [])
+  useEffect(() => {
+    if (!user) return undefined
+    const unsubscribes = [
+      data.subscribeOffers(setOffers), data.subscribeRewards(setRewards),
+      data.subscribeFuel(setFuelPrices), data.subscribeMenu(setMenu),
+      data.subscribeCategories(setCategories), data.subscribeStations(setStations),
+      data.subscribeNotifications(setNotifications),
+    ]
+    return () => unsubscribes.forEach((unsubscribe) => unsubscribe?.())
+  }, [user])
 
   const signup = useCallback(async (fields) => {
     await data.signUp(fields); notify('Welcome to Pearl Energy Rewards ✨')
@@ -72,52 +73,19 @@ export function AppProvider({ children }) {
 
   const logout = useCallback(async () => { await data.signOutUser(); setTab('home'); setOverlay(null); notify('Logged out') }, [notify])
 
-  // Redeem a reward (points-based) - adds to pending rewards
+  // Firebase performs this as one atomic server operation: ledger, balance,
+  // redemption and coupon either all commit or none of them do.
   const redeemReward = useCallback(async (reward) => {
     if (!member) return { ok: false, message: 'Please log in first' }
-    if (member.points < reward.cost) {
-      return { ok: false, message: `Need ${reward.cost - member.points} more points` }
+    const result = await data.redeemReward(member.uid, reward)
+    if (!result?.ok) return result || { ok: false, message: 'Redemption failed' }
+    if (result.coupon) {
+      setPendingRewards((previous) => previous.some((item) => item.id === result.coupon.id)
+        ? previous
+        : [result.coupon, ...previous])
     }
-    
-    // Purchased rewards are active immediately — the POS marks them used when scanned.
-    // Coupons stay valid for 7 days from purchase, then expire automatically.
-    const now = new Date()
-    const newPendingReward = {
-      id: Date.now(),
-      rewardId: reward.id,
-      title: reward.title,
-      cat: reward.cat,
-      cost: reward.cost,
-      img: reward.img,
-      color: reward.color,
-      status: 'active',
-      redeemedAt: now.toISOString(),
-      activatedAt: now.toISOString(),
-      expiresAt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-    }
-    
-    // Persist to backend FIRST so localStorage is guaranteed up-to-date
-    if (data.addPendingCoupon) {
-      await data.addPendingCoupon(member.uid, newPendingReward).catch(e => console.error('Failed to persist pending reward', e))
-    }
-
-    // Update local state immediately (UI-first)
-    setPendingRewards(prev => [...prev, newPendingReward])
-    
-    // Deduct points locally immediately
-    setMember(prev => prev ? { ...prev, points: prev.points - reward.cost } : null)
-    
-    // Persist points deduction in background (fire-and-forget — subscription will sync member)
-    if (data.adminAdjustPoints) {
-      data.adminAdjustPoints(member.uid, -reward.cost, { 
-        store: 'Reward Redeemed', 
-        amount: 0, 
-        type: `Reward: ${reward.title}` 
-      }).catch(e => console.error('Failed to persist points deduction', e))
-    }
-    
     notify(`✅ ${reward.title} is active in My Coupons — valid for 7 days, auto-applies at POS.`)
-    return { ok: true, reward: newPendingReward }
+    return { ...result, reward: result.coupon }
   }, [member, notify])
 
   // Activate a pending reward (called when scanned at POS)
