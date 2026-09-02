@@ -27,5 +27,14 @@
     "functions": { "port": 5001 },
     "ui": { "enabled": true, "port": 4000 },
     "singleProjectMode": true
+  },
+  "auth": {
+    "providers": {
+      "emailPassword": true,
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "Pearl Energy Rewards",
+        "supportEmail": "hardpatel1867@gmail.com"
+      }
+    }
   }
 }
