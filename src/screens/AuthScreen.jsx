@@ -25,6 +25,7 @@ export default function AuthScreen() {
   const doSignupStart = () => {
     if (!terms) { setError('Please accept the Terms & Privacy Policy'); return }
     if (form.password && form.password !== form.confirm) { setError('Passwords do not match'); return }
+    if (mode === 'local') { run(() => signup({ ...form, email: identifier })); return }
     setError(''); setView('otp')
   }
   const doSignupFinish = () => run(() => signup({ ...form, email: identifier }))
@@ -45,7 +46,7 @@ export default function AuthScreen() {
           {view === 'otp' ? 'Enter the 4-digit code we sent you' : 'Fuel. Shop. Earn. Redeem.'}
         </p>
         <span style={{ display: 'inline-block', marginTop: 12, fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 999, background: 'rgba(255,255,255,0.18)' }}>
-          {mode === 'firebase' ? '● Connected to Firebase' : '● Demo mode (local DB)'}
+          {mode === 'firebase' ? '● Connected to Firebase' : '● Client preview mode'}
         </span>
       </div>
 
