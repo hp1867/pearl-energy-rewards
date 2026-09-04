@@ -11,7 +11,7 @@ import ProfileScreen from './screens/ProfileScreen'
 import NightDealsScreen from './screens/NightDealsScreen'
 import BottomNav from './components/BottomNav'
 import Toast from './components/Toast'
-import { FuelPrices, StoreLocator, WalletCard, ScanModal, Receipts, Notifications, MyCoupons, EditProfile, HelpSupport, TiersInfo, SpinWheel } from './screens/Overlays'
+import { FuelPrices, StoreLocator, WalletCard, ScanModal, Receipts, Notifications, MyCoupons, EditProfile, HelpSupport, TiersInfo, SpinWheel, ItemDetails } from './screens/Overlays'
 
 const TABS = {
   home: HomeScreen,
@@ -34,6 +34,7 @@ const OVERLAYS = {
   tiers: TiersInfo,
   wheel: SpinWheel,
   nightdeals: NightDealsScreen,
+  itemdetails: ItemDetails,
 }
 
 export default function App() {

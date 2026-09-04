@@ -1,15 +1,19 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Clock } from 'lucide-react'
+import { ChevronRight, Clock } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import Card3D from '../components/Card3D'
 
 const CATS = ['All', 'Fuel Deals', 'Food Deals', 'Coffee Deals', 'Imported Products', 'Seasonal Specials']
 
 export default function OffersScreen() {
-  const { notify, offers } = useApp()
+  const { offers, setOverlay, setOverlayArg } = useApp()
   const [cat, setCat] = useState('All')
   const list = cat === 'All' ? offers : offers.filter((o) => o.cat === cat)
+  const openOffer = (offer) => {
+    setOverlayArg({ kind: 'offer', item: offer })
+    setOverlay('itemdetails')
+  }
 
   return (
     <div className="screen">
@@ -25,7 +29,7 @@ export default function OffersScreen() {
           {list.map((o, i) => (
             <motion.div key={o.id} initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
               <Card3D intensity={7}>
-                <div style={{ borderRadius: 22, overflow: 'hidden', background: '#fff', boxShadow: 'var(--shadow-md)' }}>
+                <button className="offer-card-button tap-card" onClick={() => openOffer(o)} aria-label={`View offer: ${o.title}`}>
                   <div style={{ height: 128, background: `linear-gradient(135deg, ${o.accent}, ${o.accent}cc)`, position: 'relative', display: 'flex', alignItems: 'center', padding: 20 }}>
                     <div style={{ position: 'absolute', right: 6, bottom: -20, fontSize: 110, opacity: 0.3 }}>{o.img}</div>
                     <div style={{ color: '#fff', zIndex: 1 }}>
@@ -44,8 +48,9 @@ export default function OffersScreen() {
                         <span style={{ fontSize: 12 }}>🏷️</span> Auto apply to POS
                       </div>
                     </div>
+                    <span className="card-open-cue">View offer <ChevronRight size={16} /></span>
                   </div>
-                </div>
+                </button>
               </Card3D>
             </motion.div>
           ))}

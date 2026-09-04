@@ -25,6 +25,7 @@ export default function HomeScreen() {
   const firstNightDeal = nightDeals[0]
   const firstNightStation = firstNightDeal && stations.find((station) => String(station.id) === String(firstNightDeal.stationId))
   const openLocator = (id) => { setOverlayArg(id || null); setOverlay('locator') }
+  const openItem = (kind, item) => { setOverlayArg({ kind, item }); setOverlay('itemdetails') }
 
   // geographic pin positions for the faux mini-map
   const lats = stations.map((s) => s.lat), lngs = stations.map((s) => s.lng)
@@ -201,17 +202,20 @@ export default function HomeScreen() {
         <div className="section-title"><h3>Featured Offers</h3><button onClick={() => setTab('offers')}>See all</button></div>
         <div className="h-scroll fade-mask">
           {offers.slice(0, 4).map((o) => (
-            <div key={o.id} onClick={() => setTab('offers')} style={{ width: 280, borderRadius: 16, overflow: 'hidden', background: '#fff', border: '1px solid rgba(194,198,212,0.3)', boxShadow: 'var(--shadow-sm)' }}>
+            <button key={o.id} className="tap-card" onClick={() => openItem('offer', o)} aria-label={`View offer: ${o.title}`} style={{ width: 280, borderRadius: 16, overflow: 'hidden', background: '#fff', border: '1px solid rgba(194,198,212,0.3)', boxShadow: 'var(--shadow-sm)', textAlign: 'left' }}>
               <div style={{ height: 128, position: 'relative', background: `linear-gradient(135deg, ${o.accent}, ${o.accent}cc)`, display: 'flex', alignItems: 'flex-end', padding: 12 }}>
                 <div style={{ position: 'absolute', right: 6, top: -10, fontSize: 96, opacity: 0.25 }}>{o.img}</div>
                 <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.5), transparent)' }} />
                 <span className="pill" style={{ position: 'relative', background: o.tag === 'NEW' ? 'var(--secondary-container)' : 'var(--error)', color: '#fff' }}>{o.tag}</span>
               </div>
-              <div style={{ padding: 12 }}>
-                <h4 style={{ fontSize: 18, fontWeight: 600, color: 'var(--ink)' }}>{o.title}</h4>
-                <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 4 }}>{o.sub}</p>
+              <div style={{ padding: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ minWidth: 0, flex: 1 }}>
+                  <h4 style={{ fontSize: 18, fontWeight: 600, color: 'var(--ink)' }}>{o.title}</h4>
+                  <span style={{ display: 'block', fontSize: 12, color: 'var(--ink-soft)', marginTop: 4 }}>{o.sub}</span>
+                </span>
+                <span className="mini-open-cue" aria-hidden><ArrowUpRight size={15} /></span>
               </div>
-            </div>
+            </button>
           ))}
         </div>
 
@@ -221,7 +225,7 @@ export default function HomeScreen() {
           {hotDeals.map((d, i) => {
             const Icon = DEAL_ICON[i % DEAL_ICON.length]
             return (
-              <div key={d.id} style={{ width: 140, background: '#fff', borderRadius: 12, padding: 12, border: '1px solid rgba(194,198,212,0.2)', boxShadow: 'var(--shadow-sm)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <button key={d.id} className="tap-card" onClick={() => openItem('hot-deal', d)} aria-label={`View deal: ${d.name}`} style={{ width: 140, background: '#fff', borderRadius: 12, padding: 12, border: '1px solid rgba(194,198,212,0.2)', boxShadow: 'var(--shadow-sm)', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'left' }}>
                 <div style={{ position: 'relative', width: 80, height: 80, borderRadius: 8, background: 'var(--surface-low)', display: 'grid', placeItems: 'center', marginBottom: 12 }}>
                   <span style={{ position: 'absolute', top: -8, right: -8, background: 'var(--error)', color: '#fff', fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 999 }}>-{d.off}%</span>
                   <span style={{ fontSize: 34 }}>{d.img}</span>
@@ -230,8 +234,9 @@ export default function HomeScreen() {
                 <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--primary)' }}>{d.now}</span>
                   <span style={{ fontSize: 11, color: 'var(--muted)', textDecoration: 'line-through' }}>{d.was}</span>
+                  <ArrowUpRight size={14} color="var(--primary)" />
                 </div>
-              </div>
+              </button>
             )
           })}
         </div>

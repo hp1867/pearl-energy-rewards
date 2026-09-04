@@ -1,13 +1,17 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Search } from 'lucide-react'
+import { ChevronRight, Search } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { Header } from './OffersScreen'
 
 export default function MenuScreen() {
-  const { notify, menu, categories } = useApp()
+  const { menu, categories, setOverlay, setOverlayArg } = useApp()
   const [q, setQ] = useState('')
   const [group, setGroup] = useState('all')
+  const openProduct = (item) => {
+    setOverlayArg({ kind: 'menu', item })
+    setOverlay('itemdetails')
+  }
 
   const known = categories.map((g) => g.key)
   const matchesQ = (m) => !q || m.name.toLowerCase().includes(q.toLowerCase()) || (m.cat || '').toLowerCase().includes(q.toLowerCase())
@@ -27,8 +31,8 @@ export default function MenuScreen() {
   const empty = sections.length === 0
 
   const Card = (m, i) => (
-    <motion.div key={m.id} initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: Math.min(i * 0.03, 0.3) }}
-      style={{ background: '#fff', borderRadius: 18, padding: 12, boxShadow: 'var(--shadow-sm)', position: 'relative', opacity: m.avail ? 1 : 0.55 }}>
+    <motion.button key={m.id} initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: m.avail ? 1 : 0.62, scale: 1 }} whileTap={{ scale: 0.975 }} transition={{ delay: Math.min(i * 0.03, 0.3) }}
+      className="menu-product-card tap-card" onClick={() => openProduct(m)} aria-label={`View ${m.name}${m.avail ? '' : ', currently sold out'}`}>
       <div style={{ height: 86, borderRadius: 14, background: 'var(--silver)', display: 'grid', placeItems: 'center', fontSize: 44, position: 'relative' }}>
         {m.img}
         {(m.tags || []).includes('Imported') && <span className="pill" style={{ position: 'absolute', top: 6, left: 6, background: '#6c3483', color: '#fff' }}>Imported</span>}
@@ -36,9 +40,12 @@ export default function MenuScreen() {
       </div>
       <div style={{ fontWeight: 700, fontSize: 13.5, marginTop: 10, lineHeight: 1.25 }}>{m.name}</div>
       <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 3, minHeight: 28 }}>{m.desc}</div>
-      <div style={{ fontWeight: 800, color: 'var(--blue)' }}>{m.price}</div>
+      <div className="menu-product-footer">
+        <span style={{ fontWeight: 800, color: 'var(--blue)' }}>{m.price}</span>
+        <span className="mini-open-cue" aria-hidden><ChevronRight size={14} /></span>
+      </div>
       {!m.avail && <div style={{ fontSize: 10.5, color: '#c0392b', fontWeight: 700, marginTop: 4 }}>Sold out</div>}
-    </motion.div>
+    </motion.button>
   )
 
   return (

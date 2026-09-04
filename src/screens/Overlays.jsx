@@ -36,6 +36,78 @@ function Shell({ title, children, dark = false }) {
   )
 }
 
+/* ---------------- Offer / menu item details ---------------- */
+export function ItemDetails() {
+  const { overlayArg, setOverlay, setOverlayArg } = useApp()
+  const payload = overlayArg && typeof overlayArg === 'object' ? overlayArg : {}
+  const item = payload.item || {}
+  const kind = payload.kind || 'menu'
+  const isOffer = kind === 'offer' || kind === 'hot-deal'
+  const title = item.title || item.name || 'Item details'
+  const description = item.sub || item.desc || (isOffer ? 'A Pearl member offer available in store.' : 'Available from participating Pearl Energy stores.')
+  const price = item.price || item.now || 'See in store'
+  const oldPrice = item.was
+  const available = item.avail !== false
+  const accent = item.accent || (kind === 'hot-deal' ? '#c44725' : '#0057b8')
+  const tags = [...new Set([item.tag, ...(item.tags || [])].filter(Boolean))]
+
+  const close = () => { setOverlayArg(null); setOverlay(null) }
+  const openCard = () => setOverlay('wallet')
+  const findStation = () => { setOverlayArg(null); setOverlay('locator') }
+
+  return (
+    <motion.div className="item-detail-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={close}>
+      <motion.article
+        className="item-detail-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${title} details`}
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        transition={{ type: 'spring', stiffness: 330, damping: 32 }}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="item-detail-hero" style={{ '--item-accent': accent }}>
+          <button className="item-detail-close" onClick={close} aria-label="Close details"><X size={19} /></button>
+          <span className="item-detail-art" aria-hidden>{item.img || (isOffer ? '🏷️' : '🛍️')}</span>
+          <div className="item-detail-heading">
+            <span className="item-detail-kicker">{kind === 'offer' ? 'Member offer' : kind === 'hot-deal' ? 'Hot deal' : item.cat || 'In-store item'}</span>
+            <h2>{title}</h2>
+            <p>{description}</p>
+          </div>
+        </div>
+
+        <div className="item-detail-body">
+          <div className="item-detail-price-row">
+            <div>
+              <span className="item-detail-price">{price}</span>
+              {oldPrice && <span className="item-detail-old-price">{oldPrice}</span>}
+            </div>
+            <span className={`availability-pill ${available ? 'is-available' : 'is-unavailable'}`}>
+              <span aria-hidden>●</span> {available ? 'Available' : 'Sold out'}
+            </span>
+          </div>
+
+          {tags.length > 0 && <div className="item-detail-tags">{tags.map((tag) => <span key={tag}>{tag}</span>)}</div>}
+
+          <div className="item-detail-info-list">
+            {item.expiry && <div><Clock size={18} /><span><strong>Offer period</strong>Expires {item.expiry}</span></div>}
+            <div><Tag size={18} /><span><strong>{isOffer ? 'Easy redemption' : 'Earn rewards'}</strong>{isOffer ? 'Scan your Pearl card and the eligible offer applies at the POS.' : 'Scan your Pearl card at checkout to earn eligible points.'}</span></div>
+            <div><Info size={18} /><span><strong>In-store availability</strong>{available ? 'Available at participating Pearl Energy stores while stocks last.' : 'This item is currently unavailable; another station may still have stock.'}</span></div>
+          </div>
+
+          <div className="item-detail-actions">
+            <button className="btn" onClick={isOffer ? openCard : findStation}>{isOffer ? <><Wallet size={18} /> Show my card</> : <><Navigation size={18} /> Find a station</>}</button>
+            <button className="btn ghost" onClick={isOffer ? findStation : openCard}>{isOffer ? <><Navigation size={18} /> Find a station</> : <><Wallet size={18} /> My card</>}</button>
+          </div>
+          <p className="item-detail-note">Product range, pricing and stock can vary by station. Confirm availability in store.</p>
+        </div>
+      </motion.article>
+    </motion.div>
+  )
+}
+
 /* ---------------- Membership card / Wallet ---------------- */
 export function WalletCard() {
   const { member, notify } = useApp()
