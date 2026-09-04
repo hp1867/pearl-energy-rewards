@@ -297,7 +297,11 @@ export function createLocalProvider() {
     subscribeCategories(cb) { return subscribeKey(K.categories, cb) },
     subscribeStations(cb) { return subscribeKey(K.stations, cb) },
     subscribeNotifications(cb) { return subscribeKey(K.notifs, cb) },
-    subscribePendingCoupons(cb) { return subscribeKey(K.pendingCoupons, cb) },
+    subscribePendingCoupons(uid, cb) {
+      return subscribeKey(K.pendingCoupons, (rows) => {
+        cb(rows.filter((coupon) => coupon.uid === uid))
+      })
+    },
 
     // ---------- pending coupons ----------
     async addPendingCoupon(uid, coupon) {
