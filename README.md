@@ -32,6 +32,7 @@ Open it on your phone: run `npm run dev`, then visit the **Network** URL Vite pr
 | Splash screen (animated pearl mark) | ✅ |
 | Login / Sign up — Email + Mobile toggle, Google/Apple, Face ID & Fingerprint, OTP, password reset, remember me, T&Cs | ✅ |
 | Home dashboard — greeting, points card (3D tilt), quick actions, auto-sliding offer carousel (5s, swipe, dots), hot deals, AI "recommended", nearby stations | ✅ |
+| Tonight Only — nearest-station end-of-day food deals, live quantity, manager-selected automatic cutoff and midnight reset | ✅ |
 | Offers — category filters, premium redeemable cards | ✅ |
 | Menu — 12 categories, search, Popular/New/Best Sellers/Imported filters, availability, add-to-order | ✅ |
 | Rewards — points hero, tier progress, visual reward journey, redeem with confetti animation | ✅ |
@@ -39,6 +40,7 @@ Open it on your phone: run `npm run dev`, then visit the **Network** URL Vite pr
 | Apple Wallet / Google Wallet buttons | ✅ (mock) |
 | Fuel prices — ULP 91/95/98, Diesel, LPG, trends, station compare | ✅ |
 | Store locator — interactive map pins, GPS dot, amenity filters, directions | ✅ |
+| Staff console — main-admin and station-scoped Tonight Only manager roles | ✅ |
 | Digital receipts — view / PDF / share | ✅ |
 | Notifications centre | ✅ |
 | Profile — identity card, stats, transaction & reward history, settings, logout | ✅ |
@@ -56,13 +58,19 @@ Pearl Energy blue (`#0057B8` / `#4DA3FF`), white & silver (`#F5F7FA`), orange ac
 - **qrcode.react** + **react-barcode** — dynamic membership QR & barcode
 - **lucide-react** — icon set
 
-All data is mocked in `src/data/mockData.js`.
+The app uses a provider boundary: localStorage-backed demo data for client
+previews, or Firebase Auth/Firestore when `VITE_DATA_MODE=firebase` is enabled.
+The production database design is documented in `docs/database/ARCHITECTURE.md`.
+
+Open `/admin.html` for the staff console. In local demo mode, use
+`pearl-admin` for the main admin or `altona-manager` for the limited Altona
+manager view. These labelled demo passwords are not used for Firebase mode.
 
 ---
 
 ## Phase 2 — production roadmap (not yet built)
 
-- **Backend:** Node.js + Firebase, **PostgreSQL** database
+- **Backend:** Firebase Auth, Cloud Firestore and Node.js Cloud Functions
 - **Auth:** Firebase Auth (email, phone OTP, Google, Apple, biometric)
 - **Wallet passes:** real Apple PassKit (`.pkpass`) + Google Wallet API generation
 - **Maps:** Google Maps API (live GPS, directions)

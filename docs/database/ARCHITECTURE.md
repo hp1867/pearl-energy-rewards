@@ -35,6 +35,9 @@ Firestore transaction.
    by the app. Unbounded history is stored as documents, never arrays.
 9. Raw POS payloads and credentials are not stored in queryable Firestore fields.
 10. All unknown collections are denied by Security Rules.
+11. A `nightDeals` item is customer-visible only while it is active, has stock,
+    and the current time is earlier than both `sellUntil` and `safetyCutoffAt`.
+    The selling cutoff can never exceed the food-safety cutoff.
 
 ## Collection map
 
@@ -59,6 +62,8 @@ Firestore transaction.
 | `loyaltyPrograms/{id}` | Versioned earning/tier/expiry policy | controlled deployment | permanent versions |
 | `campaigns/{id}` | Missions, wheel and promotional definitions | admin | versioned/archive |
 | `campaignProgress/{id}` | Per-customer campaign state | server | campaign + audit window |
+| `nightDeals/{id}` | Per-station, time-bounded end-of-day food special | main admin or assigned branch manager | archive/reporting policy |
+| `staff/{authUid}` | Staff access projection; signed custom claims remain authoritative | trusted role-management function | employment/access lifecycle |
 | `offers`, `rewards`, `fuelPrices`, `menu`, `categories`, `stations` | App catalogs | admin | archive instead of destructive edits |
 | `schemaMigrations/{id}` | Migration checkpoints and checksums | deployment tooling | permanent |
 
@@ -126,11 +131,41 @@ so idempotency is a database invariant rather than an optional API feature.
 - Aggregate reporting should use scheduled exports/BigQuery, not full collection
   scans from the admin browser.
 
+## Tonight Only offers
+
+Branch managers publish end-of-day surplus in the dedicated admin section. Each
+document stores the station, item, integer-cent prices, remaining whole-unit
+quantity, status, Sydney business date, `startsAt`, `sellUntil`, and a separate
+`safetyCutoffAt`. The common form defaults the end time to the next midnight in
+`Australia/Sydney`, while allowing an earlier manager-selected time.
+
+Customers query only active documents whose `sellUntil` is still in the future.
+The client also rechecks start time, quantity and both cutoffs, and schedules a
+local boundary refresh. Consequently an already-open app removes the card at the
+cutoff without requiring the manager to sign in again. Expired records may remain
+for audit and waste reporting; visibility never depends on physically deleting a
+document or on a scheduled function running successfully.
+
+Availability is indicative until confirmed by the POS/register. A later POS
+adapter may update `quantityAvailable` and `sold_out`, using an idempotent station
+inventory event. Advertising stock is intentionally not a reservation, avoiding
+overselling when several customers view the same final item.
+
+Main admins use the trusted `setStaffAccess` callable to assign the distinct
+`branchManager` claim, `nightDeals.manage` permission and one or more `stationIds`.
+It deliberately does not grant the broader `staff` role. Firestore Rules
+validate the signed claim on every write. Branch managers cannot change other
+catalogs, access customers or points, move a deal to another station, extend its
+recorded safety cutoff, delete its history, or promote themselves. Role changes
+are written to `staff` and `auditLogs`; revocation also invalidates refresh tokens.
+
 ## Security boundaries
 
 - Firebase Authentication establishes the customer identity.
 - App Check should be enforced before public launch.
-- Custom claims contain access roles only (`staff`, `admin`), never profile data.
+- Custom claims contain access roles and bounded identifiers only (`staff`,
+  `branchManager`, `admin`, permission keys and assigned station IDs), never
+  profile data.
 - Mobile clients can read their records and update a small profile-field allowlist.
 - Admin client writes are limited to non-financial catalog content.
 - Financial and POS collections are server-only even for admin client accounts.

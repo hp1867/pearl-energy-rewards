@@ -2,7 +2,7 @@
 // and server-authoritative callable functions for every loyalty mutation.
 import {
   onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword,
-  signOut, GoogleAuthProvider, OAuthProvider, signInWithPopup,
+  signOut, GoogleAuthProvider, OAuthProvider, signInWithPopup, getIdTokenResult,
 } from 'firebase/auth'
 import {
   collection, deleteDoc, doc, getDoc, getDocs, limit, onSnapshot, orderBy,
@@ -15,11 +15,13 @@ import {
   menuItems as seedMenu, menuGroups, notifications as seedNotifs,
   stations as seedStations,
 } from '../data/mockData'
+import { NIGHT_DEAL_PERMISSION, normaliseNightDeal } from './nightDeals'
 
 const seedCategories = menuGroups.map((group) => ({ id: group.key, ...group }))
 const COLL = {
   offers: 'offers', rewards: 'rewards', fuel: 'fuelPrices', menu: 'menu',
   categories: 'categories', stations: 'stations', notifs: 'notifications',
+  nightDeals: 'nightDeals', staff: 'staff',
 }
 const customerRef = (uid) => doc(db, 'customers', uid)
 
@@ -60,6 +62,46 @@ function couponRow(id, data) {
   }
 }
 
+function nightDealRow(id, data) {
+  return {
+    id,
+    ...data,
+    startsAt: isoValue(data.startsAt),
+    sellUntil: isoValue(data.sellUntil),
+    safetyCutoffAt: isoValue(data.safetyCutoffAt),
+    createdAt: isoValue(data.createdAt),
+    updatedAt: isoValue(data.updatedAt),
+  }
+}
+
+async function staffAccessForUser(user, forceRefresh = false) {
+  if (!user) return null
+  const token = await getIdTokenResult(user, forceRefresh)
+  const claims = token.claims || {}
+  const permissions = Array.isArray(claims.permissions) ? claims.permissions.map(String) : []
+  const stationIds = Array.isArray(claims.stationIds) ? claims.stationIds.map(String) : []
+  if (claims.admin !== true && !(claims.branchManager === true && permissions.includes(NIGHT_DEAL_PERMISSION))) return null
+  return {
+    uid: user.uid, email: user.email || '', displayName: user.displayName || user.email || 'Staff',
+    role: claims.admin === true ? 'admin' : 'branch_manager', admin: claims.admin === true,
+    branchManager: claims.branchManager === true, permissions: claims.admin === true ? ['*'] : permissions,
+    stationIds: claims.admin === true ? ['*'] : stationIds,
+  }
+}
+
+function liveNightDeals(cb, adminView = false) {
+  const source = adminView
+    ? query(collection(db, 'nightDeals'), orderBy('sellUntil', 'desc'), limit(250))
+    : query(collection(db, 'nightDeals'), where('status', '==', 'active'), where('sellUntil', '>', new Date()), orderBy('sellUntil', 'asc'), limit(100))
+  return onSnapshot(source, (snapshot) => {
+    const rows = snapshot.docs.map((row) => nightDealRow(row.id, row.data()))
+    cb(rows)
+  }, (error) => {
+    console.error('Firestore subscription failed for nightDeals', error)
+    cb([])
+  })
+}
+
 async function ensureCustomerDoc(user, extra = {}) {
   const existing = await getDoc(customerRef(user.uid))
   if (existing.exists()) return existing.data()
@@ -88,6 +130,24 @@ function liveCollection(name, seed, cb) {
 export function createFirebaseProvider() {
   return {
     mode: 'firebase',
+
+    adminOnAuth(cb) {
+      return onAuthStateChanged(auth, async (user) => {
+        try { cb(await staffAccessForUser(user)) } catch (error) { console.error(error); cb(null) }
+      })
+    },
+
+    async adminSignIn({ email, password }) {
+      const credential = await signInWithEmailAndPassword(auth, email, password)
+      const access = await staffAccessForUser(credential.user, true)
+      if (!access) {
+        await signOut(auth)
+        throw new Error('This account does not have Pearl Energy admin access.')
+      }
+      return access
+    },
+
+    async adminSignOut() { return signOut(auth) },
 
     onAuth(cb) {
       return onAuthStateChanged(auth, (user) => cb(user ? { uid: user.uid, email: user.email } : null))
@@ -202,13 +262,32 @@ export function createFirebaseProvider() {
     subscribeCategories(cb) { return liveCollection('categories', seedCategories, cb) },
     subscribeStations(cb) { return liveCollection('stations', seedStations, cb) },
     subscribeNotifications(cb) { return liveCollection('notifications', seedNotifs, cb) },
+    subscribeNightDeals(cb) { return liveNightDeals(cb, false) },
+    subscribeNightDealsAdmin(cb) { return liveNightDeals(cb, true) },
+    subscribeStaff(cb) { return liveCollection('staff', [], cb) },
 
     async adminUpsert(name, item) {
       const collectionName = COLL[name] || name
       const id = String(item.id || doc(collection(db, collectionName)).id)
-      const next = { ...item, id, schemaVersion: 1, updatedAt: serverTimestamp() }
-      await setDoc(doc(db, collectionName, id), next, { merge: true })
-      return { ...item, id, schemaVersion: 1 }
+      const ref = doc(db, collectionName, id)
+      const existing = await getDoc(ref)
+      let clean = { ...item }
+      if (name === 'nightDeals') {
+        clean = normaliseNightDeal(item)
+        clean.startsAt = new Date(clean.startsAt)
+        clean.sellUntil = new Date(clean.sellUntil)
+        clean.safetyCutoffAt = new Date(clean.safetyCutoffAt)
+      }
+      const next = {
+        ...clean, id, schemaVersion: 1,
+        updatedAt: serverTimestamp(), updatedBy: auth.currentUser?.uid || '',
+      }
+      if (!existing.exists()) {
+        next.createdAt = serverTimestamp()
+        next.createdBy = auth.currentUser?.uid || ''
+      }
+      await setDoc(ref, next, { merge: true })
+      return { ...clean, id, schemaVersion: 1 }
     },
 
     async adminRemove(name, id) {
@@ -218,6 +297,10 @@ export function createFirebaseProvider() {
     async adminListCustomers() {
       const snapshot = await getDocs(query(collection(db, 'customers'), limit(200)))
       return snapshot.docs.map((row) => row.data())
+    },
+
+    async adminSetStaffAccess(input) {
+      return call('setStaffAccess', input)
     },
 
     async adminAdjustPoints(uid, delta, meta = {}) {

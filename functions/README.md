@@ -2,8 +2,8 @@
 
 The backend has two security domains:
 
-- callable loyalty functions: `ensureCustomerProfile`, `redeemReward`, and
-  `adminAdjustPoints`;
+- callable loyalty/admin functions: `ensureCustomerProfile`, `redeemReward`,
+  `adminAdjustPoints`, and `setStaffAccess`;
 - `posApi`, an authenticated and idempotent POS transaction ingestion endpoint.
 
 The existing `api` wallet-pass routes remain scaffolds until the required
@@ -36,6 +36,8 @@ Use at least 32 random bytes and never store this secret in `.env`, Firestore or
 - `ensureCustomerProfile` — authenticated customer bootstrap with collision-safe IDs.
 - `redeemReward` — atomic balance debit, ledger, redemption and coupon issue.
 - `adminAdjustPoints` — admin-claim-only audited balance correction.
+- `setStaffAccess` — main-admin-only branch-manager claim assignment, revocation,
+  station scoping and audit logging.
 - `posApi` — `POST /v1/pos/transactions` and `GET /health`.
 - `api` — wallet pass scaffolds under `/passes/apple`, `/passes/google`, and
   `/passes/samsung`.

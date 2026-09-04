@@ -3,26 +3,83 @@
 // Live updates are simulated with an in-memory pub/sub (+ cross-tab storage events).
 import { buildNewCustomer, buildQrData, tierForPoints } from './ids'
 import { offers as seedOffers, rewards as seedRewards, fuelTypes as seedFuel, menuItems as seedMenu, menuGroups, notifications as seedNotifs, stations as seedStations } from '../data/mockData'
+import { asDate, buildDemoNightDeals, NIGHT_DEAL_PERMISSION, normaliseNightDeal } from './nightDeals'
 
 const seedCategories = menuGroups.map((g) => ({ id: g.key, ...g }))
 
 const K = {
   customers: 'pe_customers', session: 'pe_session',
   offers: 'pe_offers', rewards: 'pe_rewards', fuel: 'pe_fuel', menu: 'pe_menu', categories: 'pe_categories', stations: 'pe_stations', notifs: 'pe_notifs', pendingCoupons: 'pe_pendingCoupons',
+  nightDeals: 'pe_nightDeals', staff: 'pe_staff',
 }
-const SEED = { [K.offers]: seedOffers, [K.rewards]: seedRewards, [K.fuel]: seedFuel, [K.menu]: seedMenu, [K.categories]: seedCategories, [K.stations]: seedStations, [K.notifs]: seedNotifs, [K.pendingCoupons]: [] }
+const seedStaff = [{
+  id: 'demo-altona-manager', uid: 'demo-altona-manager',
+  email: 'altona.manager@pearlenergy.com.au', displayName: 'Altona Night Manager',
+  role: 'branch_manager', permissions: [NIGHT_DEAL_PERMISSION], stationIds: ['s17'], active: true,
+}]
+const SEED = {
+  [K.offers]: seedOffers, [K.rewards]: seedRewards, [K.fuel]: seedFuel,
+  [K.menu]: seedMenu, [K.categories]: seedCategories, [K.stations]: seedStations,
+  [K.notifs]: seedNotifs, [K.pendingCoupons]: [],
+  [K.nightDeals]: buildDemoNightDeals(), [K.staff]: seedStaff,
+}
 
 const read = (k, fallback) => { try { return JSON.parse(localStorage.getItem(k)) ?? fallback } catch { return fallback } }
 const write = (k, v) => localStorage.setItem(k, JSON.stringify(v))
+const ADMIN_SESSION_KEY = 'pe_admin_access'
+const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'pearl-admin'
+const ALTONA_MANAGER_PASSWORD = import.meta.env.VITE_ALTONA_MANAGER_PASSWORD || 'altona-manager'
+
+const mainAdminAccess = {
+  uid: 'demo-main-admin', email: 'admin@pearlenergy.com.au', displayName: 'Main Admin',
+  role: 'admin', admin: true, permissions: ['*'], stationIds: ['*'],
+}
+const altonaManagerAccess = {
+  uid: 'demo-altona-manager', email: 'altona.manager@pearlenergy.com.au',
+  displayName: 'Altona Night Manager', role: 'branch_manager', branchManager: true,
+  permissions: [NIGHT_DEAL_PERMISSION], stationIds: ['s17'],
+}
+
+const getAdminAccess = () => {
+  try { return JSON.parse(sessionStorage.getItem(ADMIN_SESSION_KEY)) || null } catch { return null }
+}
+
+function canManageNightDeal(access, stationId) {
+  return access?.admin === true || (
+    access?.permissions?.includes(NIGHT_DEAL_PERMISSION)
+    && access?.stationIds?.map(String).includes(String(stationId))
+  )
+}
+
+function requireAdminWrite(name, item = {}) {
+  const access = getAdminAccess()
+  if (access?.admin === true) return access
+  if (name === 'nightDeals' && canManageNightDeal(access, item.stationId)) return access
+  throw new Error('You do not have permission to make this change.')
+}
 
 // seed catalogs once; bump SEED_VERSION to refresh demo data after changes
-const SEED_VERSION = '5' // bumped: removed car wash / movie voucher / drink bottle / eggs
+const SEED_VERSION = '6' // added Tonight Only deals, Altona station and branch access
 if (localStorage.getItem('pe_seedver') !== SEED_VERSION) {
   Object.entries(SEED).forEach(([k, v]) => write(k, v))
   localStorage.setItem('pe_seedver', SEED_VERSION)
 } else {
   Object.entries(SEED).forEach(([k, v]) => { if (!localStorage.getItem(k)) write(k, v) })
 }
+
+// Roll only the built-in preview rows to the new Sydney business day. Manager-
+// created rows remain untouched, including their audit history and status.
+const freshDemoDeals = SEED[K.nightDeals]
+const freshById = new Map(freshDemoDeals.map((deal) => [String(deal.id), deal]))
+const storedNightDeals = read(K.nightDeals, freshDemoDeals)
+let refreshedDemoDeals = false
+const rolledNightDeals = storedNightDeals.map((deal) => {
+  const fresh = freshById.get(String(deal.id))
+  if (!fresh || deal.businessDate === fresh.businessDate) return deal
+  refreshedDemoDeals = true
+  return fresh
+})
+if (refreshedDemoDeals) write(K.nightDeals, rolledNightDeals)
 
 const bus = new EventTarget()
 const emit = (type) => bus.dispatchEvent(new Event(type))
@@ -138,9 +195,50 @@ function subscribeKey(key, cb) {
 }
 function saveCollection(key, rows) { write(key, rows); emit('catalog:' + key) }
 
+function subscribeNightDeals(cb, adminView = false) {
+  const access = getAdminAccess()
+  const fire = () => {
+    let rows = read(K.nightDeals, SEED[K.nightDeals] || [])
+    if (!adminView) {
+      const now = Date.now()
+      rows = rows.filter((deal) => deal.status === 'active'
+        && Number(deal.quantityAvailable) > 0
+        && asDate(deal.sellUntil)?.getTime() > now
+        && asDate(deal.safetyCutoffAt)?.getTime() > now)
+    }
+    else if (!access?.admin) rows = rows.filter((deal) => canManageNightDeal(access, deal.stationId))
+    cb(rows)
+  }
+  bus.addEventListener('catalog:' + K.nightDeals, fire)
+  const timer = window.setInterval(fire, 30000)
+  fire()
+  return () => {
+    bus.removeEventListener('catalog:' + K.nightDeals, fire)
+    window.clearInterval(timer)
+  }
+}
+
 export function createLocalProvider() {
   const base = {
     mode: 'local',
+
+    adminOnAuth(cb) {
+      cb(getAdminAccess())
+      return () => {}
+    },
+
+    async adminSignIn({ password }) {
+      const access = password === ADMIN_PASSWORD
+        ? mainAdminAccess
+        : password === ALTONA_MANAGER_PASSWORD ? altonaManagerAccess : null
+      if (!access) throw new Error('Incorrect email or password.')
+      sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(access))
+      return access
+    },
+
+    async adminSignOut() {
+      sessionStorage.removeItem(ADMIN_SESSION_KEY)
+    },
 
     onAuth(cb) {
       const fire = () => { const uid = read(K.session, null); cb(uid ? { uid } : null) }
@@ -297,6 +395,13 @@ export function createLocalProvider() {
     subscribeCategories(cb) { return subscribeKey(K.categories, cb) },
     subscribeStations(cb) { return subscribeKey(K.stations, cb) },
     subscribeNotifications(cb) { return subscribeKey(K.notifs, cb) },
+    subscribeNightDeals(cb) { return subscribeNightDeals(cb, false) },
+    subscribeNightDealsAdmin(cb) { return subscribeNightDeals(cb, true) },
+    subscribeStaff(cb) {
+      const access = getAdminAccess()
+      if (!access?.admin) { cb([]); return () => {} }
+      return subscribeKey(K.staff, cb)
+    },
     subscribePendingCoupons(uid, cb) {
       return subscribeKey(K.pendingCoupons, (rows) => {
         cb(rows.filter((coupon) => coupon.uid === uid))
@@ -338,27 +443,66 @@ export function createLocalProvider() {
 
     // ---------- admin / write API ----------
     async adminUpsert(name, item) {
+      const access = requireAdminWrite(name, item)
       const key = K[name] || 'pe_' + name
       const rows = read(key, SEED[key] || [])
       const id = item.id || String(Date.now())
-      const next = { ...item, id }
       const i = rows.findIndex((r) => String(r.id) === String(id))
+      let next = { ...item, id }
+      if (name === 'nightDeals') {
+        const previous = i >= 0 ? rows[i] : null
+        if (previous && !access.admin && String(previous.stationId) !== String(item.stationId)) {
+          throw new Error('A branch manager cannot move a deal to another station.')
+        }
+        next = normaliseNightDeal({
+          ...next,
+          createdAt: previous?.createdAt || new Date().toISOString(),
+          createdBy: previous?.createdBy || access.uid,
+          updatedAt: new Date().toISOString(), updatedBy: access.uid,
+        })
+      }
       if (i >= 0) rows[i] = next; else rows.push(next)
       saveCollection(key, rows)
       return next
     },
     async adminRemove(name, id) {
+      const access = getAdminAccess()
+      if (!access?.admin) throw new Error('Only the main admin can delete records. Mark the deal sold out or paused instead.')
       const key = K[name] || 'pe_' + name
       saveCollection(key, read(key, []).filter((r) => String(r.id) !== String(id)))
     },
-    async adminListCustomers() { return Object.values(getCustomers()) },
+    async adminListCustomers() {
+      requireAdminWrite('customers')
+      return Object.values(getCustomers())
+    },
+    async adminSetStaffAccess({ email, displayName = '', stationIds = [], enabled = true }) {
+      requireAdminWrite('staff')
+      const cleanEmail = String(email || '').trim().toLowerCase()
+      if (!cleanEmail || !cleanEmail.includes('@')) throw new Error('Enter a valid staff email address.')
+      if (enabled && !stationIds.length) throw new Error('Assign at least one station.')
+      const rows = read(K.staff, [])
+      const existingIndex = rows.findIndex((staff) => staff.email === cleanEmail)
+      const previous = existingIndex >= 0 ? rows[existingIndex] : null
+      const next = {
+        id: previous?.id || `demo-${Date.now()}`, uid: previous?.uid || `demo-${Date.now()}`,
+        email: cleanEmail, displayName: String(displayName || previous?.displayName || cleanEmail),
+        role: 'branch_manager', permissions: enabled ? [NIGHT_DEAL_PERMISSION] : [],
+        stationIds: enabled ? stationIds.map(String) : [], active: Boolean(enabled),
+        updatedAt: new Date().toISOString(),
+      }
+      if (existingIndex >= 0) rows[existingIndex] = next; else rows.push(next)
+      saveCollection(K.staff, rows)
+      return { ...next, demoPassword: cleanEmail === altonaManagerAccess.email ? ALTONA_MANAGER_PASSWORD : null }
+    },
     async adminAdjustPoints(uid, delta, meta = {}) {
+      requireAdminWrite('customers')
       const customers = getCustomers(); const c = customers[uid]; if (!c) return
       c.points += delta; c.lifetimePoints += Math.max(0, delta)
       c.transactions = [{ id: Date.now(), store: meta.store || 'Admin adjustment', amount: meta.amount || 0, points: delta, date: new Date().toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' }), type: meta.type || 'Adjustment' }, ...(c.transactions || [])]
       syncDerived(c); saveCustomers(customers)
     },
     async adminBroadcast(notif) {
+      requireAdminWrite('notifications')
       const rows = read(K.notifs, seedNotifs)
       saveCollection(K.notifs, [{ id: Date.now(), time: 'just now', ...notif }, ...rows])
     },

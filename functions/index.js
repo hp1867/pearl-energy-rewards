@@ -11,6 +11,8 @@ import express from 'express'
 import cors from 'cors'
 import { HttpsError, onCall, onRequest } from 'firebase-functions/v2/https'
 import { defineSecret } from 'firebase-functions/params'
+import { getAuth } from 'firebase-admin/auth'
+import { FieldValue } from 'firebase-admin/firestore'
 import { DEFAULT_FUNCTION_REGION } from './src/constants.js'
 import { ensureCustomer } from './src/customerService.js'
 import { adjustPoints, redeemReward as redeemRewardService } from './src/loyaltyService.js'
@@ -107,6 +109,77 @@ export const adminAdjustPoints = onCall({ region }, async (request) => {
   } catch (error) {
     throw callableError(error)
   }
+})
+
+// Main-admin-only role assignment. Branch access is stored in signed Firebase
+// custom claims, so a manager cannot grant themselves another station or role.
+export const setStaffAccess = onCall({ region }, async (request) => {
+  if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in before managing staff access')
+  if (request.auth.token.admin !== true) throw new HttpsError('permission-denied', 'A main admin claim is required')
+
+  const email = String(request.data?.email || '').trim().toLowerCase()
+  const displayName = String(request.data?.displayName || '').trim().slice(0, 120)
+  const enabled = request.data?.enabled !== false
+  const stationIds = [...new Set((request.data?.stationIds || []).map(String).map((value) => value.trim()).filter(Boolean))]
+  if (!/^\S+@\S+\.\S+$/.test(email) || email.length > 254) throw new HttpsError('invalid-argument', 'Enter a valid staff email address')
+  if (stationIds.length > 20) throw new HttpsError('invalid-argument', 'A manager can be assigned to at most 20 stations')
+  if (enabled && stationIds.length === 0) throw new HttpsError('invalid-argument', 'Assign at least one station')
+
+  if (enabled) {
+    const stationSnapshots = await Promise.all(stationIds.map((stationId) => db.doc(`stations/${stationId}`).get()))
+    if (stationSnapshots.some((snapshot) => !snapshot.exists)) throw new HttpsError('failed-precondition', 'Every assigned station must exist')
+  }
+
+  const authAdmin = getAuth()
+  let staffUser
+  let inviteLink = null
+  try {
+    staffUser = await authAdmin.getUserByEmail(email)
+  } catch (error) {
+    if (error.code !== 'auth/user-not-found' || !enabled) throw new HttpsError('not-found', 'No Firebase user exists for that email')
+    staffUser = await authAdmin.createUser({ email, displayName: displayName || undefined, emailVerified: false })
+    inviteLink = await authAdmin.generatePasswordResetLink(email)
+  }
+
+  if (staffUser.customClaims?.admin === true) {
+    throw new HttpsError('failed-precondition', 'Main-admin access cannot be changed from the branch-manager form')
+  }
+  if (enabled && staffUser.customClaims?.staff === true) {
+    throw new HttpsError('failed-precondition', 'This account already has a broader staff role; use a dedicated branch-manager account')
+  }
+
+  const claims = { ...(staffUser.customClaims || {}) }
+  if (enabled) {
+    claims.branchManager = true
+    claims.permissions = ['nightDeals.manage']
+    claims.stationIds = stationIds
+  } else {
+    delete claims.branchManager
+    delete claims.permissions
+    delete claims.stationIds
+  }
+  await authAdmin.setCustomUserClaims(staffUser.uid, claims)
+  if (!enabled) await authAdmin.revokeRefreshTokens(staffUser.uid)
+
+  const now = FieldValue.serverTimestamp()
+  const batch = db.batch()
+  batch.set(db.doc(`staff/${staffUser.uid}`), {
+    id: staffUser.uid, uid: staffUser.uid, email,
+    displayName: displayName || staffUser.displayName || email,
+    role: 'branch_manager', permissions: enabled ? ['nightDeals.manage'] : [],
+    stationIds: enabled ? stationIds : [], active: enabled,
+    updatedAt: now, updatedBy: request.auth.uid, schemaVersion: 1,
+  }, { merge: true })
+  const auditRef = db.collection('auditLogs').doc()
+  batch.set(auditRef, {
+    id: auditRef.id, action: enabled ? 'staff.access_granted' : 'staff.access_revoked',
+    actorUid: request.auth.uid, targetUid: staffUser.uid,
+    metadata: { permissions: enabled ? ['nightDeals.manage'] : [], stationIds: enabled ? stationIds : [] },
+    occurredAt: now, schemaVersion: 1,
+  })
+  await batch.commit()
+
+  return { ok: true, uid: staffUser.uid, email, enabled, stationIds: enabled ? stationIds : [], inviteLink }
 })
 
 export const api = onRequest({ region }, app)

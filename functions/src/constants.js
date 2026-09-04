@@ -19,5 +19,6 @@ export const COLLECTIONS = Object.freeze({
   outbox: 'outbox',
   auditLogs: 'auditLogs',
   loyaltyPrograms: 'loyaltyPrograms',
+  nightDeals: 'nightDeals',
+  staff: 'staff',
 })
-

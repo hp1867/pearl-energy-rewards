@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CreditCard, Star, MapPin, ArrowUpRight, Zap, Cookie, Droplet, Navigation, Target, Tag, X } from 'lucide-react'
+import { CreditCard, Star, MapPin, ArrowUpRight, Zap, Cookie, Droplet, Navigation, Target, Tag, X, Clock3, MoonStar } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { PearlMark } from '../components/Brand'
 import Card3D from '../components/Card3D'
@@ -9,6 +9,7 @@ import { integrations } from '../config/integrations'
 import { tierTheme } from '../theme/tiers'
 import { hotDeals, tiers } from '../data/mockData'
 import { MISSION_TARGET, MISSION_PRIZES } from '../services/localProvider'
+import { formatMoney } from '../services/nightDeals'
 
 const greeting = () => {
   const h = new Date().getHours()
@@ -18,9 +19,11 @@ const greeting = () => {
 const DEAL_ICON = [Zap, Cookie, Droplet, Zap, Cookie]
 
 export default function HomeScreen() {
-  const { member, offers, stations, setTab, setOverlay, setOverlayArg, notify } = useApp()
+  const { member, offers, stations, nightDeals, setTab, setOverlay, setOverlayArg, notify } = useApp()
   const mapsReady = integrations.maps.ready
   const nearest = stations[0]
+  const firstNightDeal = nightDeals[0]
+  const firstNightStation = firstNightDeal && stations.find((station) => String(station.id) === String(firstNightDeal.stationId))
   const openLocator = (id) => { setOverlayArg(id || null); setOverlay('locator') }
 
   // geographic pin positions for the faux mini-map
@@ -168,6 +171,38 @@ export default function HomeScreen() {
             {(member.wheelSpins || 0) > 0 && (
               <span style={{ background: '#fff', color: '#5b4bd4', fontWeight: 800, fontSize: 12, padding: '4px 10px', borderRadius: 999 }}>{member.wheelSpins}</span>
             )}
+          </button>
+        </div>
+
+        {/* Branch-managed, automatically expiring end-of-day food offers */}
+        <div className="section-title"><h3>Tonight Only</h3><button onClick={() => setOverlay('nightdeals')}>See nearby</button></div>
+        <div style={{ padding: '0 20px 4px' }}>
+          <button onClick={() => setOverlay('nightdeals')} style={{ width: '100%', borderRadius: 20, overflow: 'hidden', textAlign: 'left', color: '#fff', background: 'linear-gradient(145deg,#52270c 0%,#9a4b0c 58%,#e78b17 100%)', boxShadow: '0 12px 34px rgba(154,75,12,.28)', position: 'relative' }}>
+            <div style={{ position: 'absolute', width: 130, height: 130, borderRadius: '50%', right: -35, top: -50, background: 'rgba(255,213,132,.19)' }} />
+            <div style={{ padding: '15px 16px 14px', display: 'flex', alignItems: 'center', gap: 13, position: 'relative' }}>
+              <div style={{ width: 58, height: 58, flex: '0 0 58px', borderRadius: 16, background: 'rgba(255,255,255,.15)', display: 'grid', placeItems: 'center', fontSize: firstNightDeal ? 32 : 0 }}>
+                {firstNightDeal?.img || <MoonStar size={28} />}
+              </div>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.08em', opacity: .8 }}><Clock3 size={12} /> Fresh end-of-day specials</div>
+                {firstNightDeal ? (
+                  <>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginTop: 4 }}>
+                      <strong style={{ fontSize: 17, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{firstNightDeal.productName}</strong>
+                      <strong style={{ fontSize: 18, color: '#ffe098' }}>{formatMoney(firstNightDeal.dealPriceCents)}</strong>
+                    </div>
+                    <div style={{ fontSize: 11.5, opacity: .86, marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{firstNightDeal.quantityAvailable} left · {firstNightStation?.name || 'Pearl Energy'} · {nightDeals.length} live deal{nightDeals.length === 1 ? '' : 's'}</div>
+                  </>
+                ) : (
+                  <>
+                    <strong style={{ display: 'block', fontSize: 16, marginTop: 4 }}>No specials live right now</strong>
+                    <span style={{ display: 'block', fontSize: 11.5, opacity: .86, marginTop: 3 }}>Check back when your local branch publishes tonight’s surplus.</span>
+                  </>
+                )}
+              </div>
+              <ArrowUpRight size={19} />
+            </div>
+            <div style={{ padding: '8px 16px', background: 'rgba(29,12,3,.22)', fontSize: 10.5, fontWeight: 650, position: 'relative' }}>While stocks last · disappears automatically at the manager’s cutoff</div>
           </button>
         </div>
 

@@ -1,6 +1,7 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
 import { data, DATA_MODE } from '../services/data'
 import { offers as seedOffers, rewards as seedRewards, fuelTypes as seedFuel, menuItems as seedMenu, menuGroups as seedCats, notifications as seedNotifs, stations as seedStations } from '../data/mockData'
+import { visibleNightDeals } from '../services/nightDeals'
 
 const AppContext = createContext(null)
 export const useApp = () => useContext(AppContext)
@@ -38,6 +39,12 @@ export function AppProvider({ children }) {
   const [categories, setCategories] = useState(seedCats)
   const [stations, setStations] = useState(seedStations)
   const [notifications, setNotifications] = useState(seedNotifs)
+  const [nightDealRows, setNightDealRows] = useState([])
+  const [catalogClock, setCatalogClock] = useState(Date.now())
+  const nightDeals = useMemo(
+    () => visibleNightDeals(nightDealRows, new Date(catalogClock)),
+    [nightDealRows, catalogClock],
+  )
 
   const notify = useCallback((msg) => { setToast(msg); setTimeout(() => setToast(null), 2400) }, [])
 
@@ -55,9 +62,23 @@ export function AppProvider({ children }) {
       data.subscribeFuel(setFuelPrices), data.subscribeMenu(setMenu),
       data.subscribeCategories(setCategories), data.subscribeStations(setStations),
       data.subscribeNotifications(setNotifications),
+      data.subscribeNightDeals?.(setNightDealRows),
     ]
     return () => unsubscribes.forEach((unsubscribe) => unsubscribe?.())
   }, [user])
+
+  // Re-evaluate time-bounded catalogs even when Firestore itself has not
+  // changed. This removes a deal from an already-open app at its cutoff.
+  useEffect(() => {
+    const now = Date.now()
+    const nextBoundary = nightDealRows.flatMap((deal) => [deal.startsAt, deal.sellUntil, deal.safetyCutoffAt])
+      .map((value) => new Date(value).getTime())
+      .filter((time) => Number.isFinite(time) && time > now)
+      .sort((a, b) => a - b)[0]
+    if (!nextBoundary) return undefined
+    const timer = window.setTimeout(() => setCatalogClock(Date.now()), Math.min(nextBoundary - now + 50, 2147483647))
+    return () => window.clearTimeout(timer)
+  }, [nightDealRows, catalogClock])
 
   const signup = useCallback(async (fields) => {
     await data.signUp(fields); notify('Welcome to Pearl Energy Rewards ✨')
@@ -133,7 +154,7 @@ export function AppProvider({ children }) {
     mode: DATA_MODE,
     tab, setTab, overlay, setOverlay, overlayArg, setOverlayArg, toast, notify,
     user, member, authed: !!member, resolving: user === undefined,
-    offers, rewards, fuelPrices, menu, categories, stations, notifications,
+    offers, rewards, fuelPrices, menu, categories, stations, notifications, nightDeals,
     pendingRewards, setPendingRewards, redeemReward, activateReward, useReward, removeReward,
     signup, login, loginProvider, logout, lookupCustomer, updateProfile,
   }

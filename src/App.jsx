@@ -8,6 +8,7 @@ import OffersScreen from './screens/OffersScreen'
 import MenuScreen from './screens/MenuScreen'
 import RewardsScreen from './screens/RewardsScreen'
 import ProfileScreen from './screens/ProfileScreen'
+import NightDealsScreen from './screens/NightDealsScreen'
 import BottomNav from './components/BottomNav'
 import Toast from './components/Toast'
 import { FuelPrices, StoreLocator, WalletCard, ScanModal, Receipts, Notifications, MyCoupons, EditProfile, HelpSupport, TiersInfo, SpinWheel } from './screens/Overlays'
@@ -32,6 +33,7 @@ const OVERLAYS = {
   help: HelpSupport,
   tiers: TiersInfo,
   wheel: SpinWheel,
+  nightdeals: NightDealsScreen,
 }
 
 export default function App() {

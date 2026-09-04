@@ -97,6 +97,23 @@
         { "fieldPath": "source.provider", "order": "ASCENDING" },
         { "fieldPath": "receivedAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "nightDeals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "sellUntil", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "nightDeals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "stationId", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "sellUntil", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [

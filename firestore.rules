@@ -21,6 +21,19 @@ service cloud.firestore {
         && (('staff' in request.auth.token && request.auth.token.staff == true) || isAdmin());
     }
 
+    function canManageNightDeals(stationId) {
+      return isAdmin()
+        || (signedIn()
+          && 'branchManager' in request.auth.token
+          && request.auth.token.branchManager == true
+          && 'permissions' in request.auth.token
+          && request.auth.token.permissions is list
+          && request.auth.token.permissions.hasAny(['nightDeals.manage'])
+          && 'stationIds' in request.auth.token
+          && request.auth.token.stationIds is list
+          && request.auth.token.stationIds.hasAny([stationId]));
+    }
+
     function validOptionalString(data, field, maxLength) {
       return !(field in data)
         || data[field] == null
@@ -38,6 +51,57 @@ service cloud.firestore {
         && data.name.size() <= 170
         && validOptionalString(data, 'mobile', 32)
         && validOptionalString(data, 'dob', 10);
+    }
+
+    function validNightDeal(data) {
+      return data.keys().hasOnly([
+          'id', 'stationId', 'productName', 'description', 'img',
+          'originalPriceCents', 'dealPriceCents', 'quantityAvailable', 'status',
+          'startsAt', 'sellUntil', 'safetyCutoffAt', 'businessDate', 'timezone',
+          'schemaVersion', 'createdAt', 'createdBy', 'updatedAt', 'updatedBy'
+        ])
+        && data.keys().hasAll([
+          'id', 'stationId', 'productName', 'originalPriceCents', 'dealPriceCents',
+          'quantityAvailable', 'status', 'startsAt', 'sellUntil', 'safetyCutoffAt',
+          'businessDate', 'timezone', 'schemaVersion', 'createdAt', 'createdBy',
+          'updatedAt', 'updatedBy'
+        ])
+        && data.id is string
+        && data.id.size() > 0
+        && data.id.size() <= 128
+        && data.stationId is string
+        && data.stationId.size() > 0
+        && data.stationId.size() <= 128
+        && data.productName is string
+        && data.productName.size() > 0
+        && data.productName.size() <= 120
+        && validOptionalString(data, 'description', 500)
+        && validOptionalString(data, 'img', 32)
+        && data.originalPriceCents is int
+        && data.originalPriceCents > 0
+        && data.originalPriceCents <= 1000000
+        && data.dealPriceCents is int
+        && data.dealPriceCents > 0
+        && data.dealPriceCents < data.originalPriceCents
+        && data.quantityAvailable is int
+        && data.quantityAvailable >= 0
+        && data.quantityAvailable <= 10000
+        && data.status in ['active', 'paused', 'sold_out', 'expired']
+        && data.startsAt is timestamp
+        && data.sellUntil is timestamp
+        && data.safetyCutoffAt is timestamp
+        && data.startsAt < data.sellUntil
+        && data.sellUntil <= data.startsAt + duration.value(25, 'h')
+        && data.sellUntil <= data.safetyCutoffAt
+        && (data.status != 'active' || (data.quantityAvailable > 0 && data.sellUntil > request.time))
+        && data.businessDate is string
+        && data.businessDate.size() == 10
+        && data.timezone == 'Australia/Sydney'
+        && data.schemaVersion == 1
+        && data.createdAt is timestamp
+        && data.createdBy is string
+        && data.updatedAt is timestamp
+        && data.updatedBy is string;
     }
 
     // Customer is a read projection. Identity, balances, tiers, missions and
@@ -147,6 +211,30 @@ service cloud.firestore {
     match /notifications/{id}   { allow read: if signedIn(); allow write: if isAdmin(); }
     match /loyaltyPrograms/{id} { allow read: if signedIn(); allow write: if false; }
     match /campaigns/{id}       { allow read: if signedIn(); allow write: if isAdmin(); }
+
+    // Short-lived end-of-day food specials. A manager can write only their
+    // assigned station, and may shorten but never extend a recorded safety cutoff.
+    match /nightDeals/{id} {
+      allow read: if signedIn();
+      allow create: if canManageNightDeals(request.resource.data.stationId)
+        && validNightDeal(request.resource.data)
+        && request.resource.data.id == id
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+      allow update: if canManageNightDeals(resource.data.stationId)
+        && canManageNightDeals(request.resource.data.stationId)
+        && request.resource.data.stationId == resource.data.stationId
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.createdBy == resource.data.createdBy
+        && (isAdmin() || request.resource.data.safetyCutoffAt <= resource.data.safetyCutoffAt)
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time
+        && validNightDeal(request.resource.data);
+      allow delete: if isAdmin();
+    }
 
     match /campaignProgress/{id} {
       allow read: if isStaff()

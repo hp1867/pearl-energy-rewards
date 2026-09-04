@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import {
   ChevronLeft, TrendingDown, TrendingUp, Navigation, Search, SlidersHorizontal, Crosshair,
   Smartphone, Wallet, Download, Share2, ScanLine, X, Coffee, Car, Banknote, UtensilsCrossed,
-  Zap, Info, Tag, Star, Fuel, Bell, AlertCircle, ChevronDown, Phone, Mail, Clock,
+  Zap, Info, Tag, Star, Fuel, Bell, AlertCircle, ChevronDown, Phone, Mail, Clock, MoonStar,
 } from 'lucide-react'
 import Barcode from 'react-barcode'
 import { QRCodeCanvas } from 'qrcode.react'
@@ -119,7 +119,7 @@ export function FuelPrices() {
 
 /* ---------------- Store locator ---------------- */
 export function StoreLocator() {
-  const { setOverlay, notify, stations, overlayArg } = useApp()
+  const { setOverlay, notify, stations, nightDeals, overlayArg } = useApp()
   const [activeId, setActiveId] = useState(() => (overlayArg && stations.some((s) => s.id === overlayArg) ? overlayArg : stations[0]?.id))
   const [filters, setFilters] = useState([])
   const [q, setQ] = useState('')
@@ -129,6 +129,7 @@ export function StoreLocator() {
     filters.every((f) => (s.amenities || []).includes(f)) &&
     (!q || s.name.toLowerCase().includes(q.toLowerCase()) || (s.city || '').toLowerCase().includes(q.toLowerCase())))
   const active = stations.find((s) => s.id === activeId) || visible[0] || stations[0]
+  const activeNightDeals = active ? nightDeals.filter((deal) => String(deal.stationId) === String(active.id)) : []
   const mapsReady = integrations.maps.ready
   const select = (s) => setActiveId(s.id)
 
@@ -203,6 +204,16 @@ export function StoreLocator() {
             </div>
             <button onClick={() => notify('Opening directions…')} style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--primary-container)', color: '#fff', display: 'grid', placeItems: 'center', boxShadow: 'var(--shadow-md)' }}><Navigation size={20} fill="#fff" /></button>
           </div>
+          {activeNightDeals.length > 0 && (
+            <button onClick={() => setOverlay('nightdeals')} style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', borderRadius: 12, padding: '10px 12px', textAlign: 'left', color: '#7c3a08', background: 'linear-gradient(135deg,#fff4d6,#ffe2a6)', border: '1px solid #f7c96d' }}>
+              <MoonStar size={18} />
+              <span style={{ flex: 1 }}>
+                <b style={{ display: 'block', fontSize: 12.5 }}>Tonight Only at this station</b>
+                <span style={{ display: 'block', fontSize: 10.5, marginTop: 1 }}>{activeNightDeals.length} special{activeNightDeals.length === 1 ? '' : 's'} · {activeNightDeals[0].quantityAvailable} {activeNightDeals[0].productName}{activeNightDeals.length === 1 ? '' : ' and more'}</span>
+              </span>
+              <ChevronLeft size={16} style={{ transform: 'rotate(180deg)' }} />
+            </button>
+          )}
           <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Live fuel prices · ¢/L</div>
           {/* per-station pricing grid */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
