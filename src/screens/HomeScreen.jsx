@@ -62,96 +62,87 @@ export default function HomeScreen() {
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button onClick={() => setOverlay('coupons')} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '9px 12px', borderRadius: 999, background: 'var(--secondary-container)', color: 'var(--primary)', fontWeight: 700, fontSize: 12, boxShadow: '0 4px 14px rgba(0,87,184,0.18)' }}>
-            <Tag size={15} /> My Coupons
+          <button className="home-header-action" aria-label="My Coupons" onClick={() => setOverlay('coupons')} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '9px 12px', borderRadius: 999, background: 'var(--secondary-container)', color: 'var(--primary)', fontWeight: 700, fontSize: 12, boxShadow: '0 4px 14px rgba(0,87,184,0.18)' }}>
+            <Tag size={15} /><span>My Coupons</span>
           </button>
-          <button onClick={() => setOverlay('wallet')} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 14px', borderRadius: 999, background: 'var(--primary-container)', color: '#fff', fontWeight: 700, fontSize: 13, boxShadow: '0 6px 18px rgba(0,87,184,0.28)' }}>
-            <CreditCard size={17} /> My Card
+          <button className="home-header-action" aria-label="My Card" onClick={() => setOverlay('wallet')} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 14px', borderRadius: 999, background: 'var(--primary-container)', color: '#fff', fontWeight: 700, fontSize: 13, boxShadow: '0 6px 18px rgba(0,87,184,0.28)' }}>
+            <CreditCard size={17} /><span>My Card</span>
           </button>
         </div>
       </header>
 
       <div className="scroll" style={{ paddingTop: 80 }}>
-        {/* Points Card */}
-        <div style={{ padding: '0 20px' }}>
-          <Card3D intensity={6} glare onClick={() => setTab('rewards')}>
-            <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 24, padding: 24, background: th.card, boxShadow: `0 16px 44px ${th.glow}`, border: '1px solid rgba(255,255,255,0.25)' }}>
-              <div style={{ position: 'absolute', right: -40, top: -40, width: 140, height: 140, background: th.accent, borderRadius: '50%', filter: 'blur(40px)' }} />
-              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(115deg, transparent 38%, rgba(255,255,255,0.18) 50%, transparent 62%)', pointerEvents: 'none' }} />
-              <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
-                <div>
-                  <div className="label" style={{ color: th.sub }}>Pearl Rewards</div>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginTop: 4 }}>
-                    <span style={{ fontSize: 48, fontWeight: 700, lineHeight: 1, letterSpacing: '-0.02em', color: th.text }}>{member.points.toLocaleString()}</span>
-                    <span style={{ fontSize: 12, fontWeight: 500, color: th.sub }}>pts</span>
-                  </div>
-                </div>
-                <button onClick={(e) => { e.stopPropagation(); setOverlay('tiers') }} className={th.shimmer ? 'gold-shimmer' : ''}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 12px', borderRadius: 999, ...th.badge }}>
+        {/* A single glanceable rewards surface replaces the two competing hero cards. */}
+        <div className="home-glance-wrap">
+          <Card3D intensity={4} glare className="home-glance-tilt">
+            <section
+              className="home-glance"
+              aria-label="Rewards summary"
+              style={{
+                '--glance-bg': th.card,
+                '--glance-text': th.text,
+                '--glance-sub': th.sub,
+                '--glance-accent': th.accent,
+                '--glance-track': th.track,
+                '--glance-fill': th.fill,
+                '--glance-panel': th.dark ? 'rgba(255,255,255,.13)' : 'rgba(255,255,255,.48)',
+                '--glance-panel-border': th.dark ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.58)',
+                boxShadow: `0 14px 38px ${th.glow}`,
+              }}
+            >
+              <span className="home-glance-orb" aria-hidden />
+
+              <div className="home-glance-top">
+                <button className="home-points-button" onClick={() => setTab('rewards')} aria-label={`View ${member.points.toLocaleString()} Pearl Rewards points`}>
+                  <span className="home-glance-kicker">Available points</span>
+                  <span className="home-points-value">
+                    {member.points.toLocaleString()}
+                    <small>pts</small>
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => setOverlay('tiers')}
+                  className={`home-tier-chip${th.shimmer ? ' gold-shimmer' : ''}`}
+                  style={th.badge}
+                  aria-label={`View ${member.tier} membership tier`}
+                >
                   <Star size={13} fill={th.badge.color} color={th.badge.color} />
-                  <span style={{ fontSize: 12, fontWeight: 700, color: th.badge.color, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{member.tier} Member</span>
+                  <span>{member.tier}</span>
                 </button>
               </div>
-              <div style={{ position: 'relative', zIndex: 1 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <span style={{ fontSize: 12, fontWeight: 500, color: th.sub }}>Progress to {next ? next.name : 'Max tier'}</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: th.text }}>{next ? next.min.toLocaleString() : ''} pts</span>
-                </div>
-                <div style={{ width: '100%', height: 8, background: th.track, borderRadius: 999, overflow: 'hidden' }}>
-                  <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 1, ease: 'easeOut' }}
-                    style={{ height: '100%', borderRadius: 999, background: th.fill }} />
-                </div>
-                <p style={{ fontSize: 12, color: th.sub, marginTop: 8, textAlign: 'center' }}>{next ? `${away.toLocaleString()} lifetime pts to ${next.name} · tap your badge to see all tiers` : 'Immortal — the top tier. You are a legend 👑'}</p>
-              </div>
-            </div>
-          </Card3D>
-        </div>
 
-        {/* Fuel Mission Card — 4 fill-ups in 2 weeks, chased as a segmented target.
-            Same dimensions as the Points card; points reveal only on completion. */}
-        <div style={{ padding: '0 20px', marginTop: 14 }}>
-          <Card3D intensity={6} glare onClick={() => setShowMissionInfo(true)}>
-            <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 24, padding: 24, background: 'linear-gradient(135deg, #b52e4c 0%, #d2477a 55%, #e56d61 100%)', color: '#fff', boxShadow: '0 16px 44px rgba(181,46,76,0.42)', border: '1px solid rgba(255,255,255,0.25)' }}>
-              <div style={{ position: 'absolute', right: -40, top: -40, width: 140, height: 140, background: 'rgba(255,255,255,0.15)', borderRadius: '50%', filter: 'blur(40px)' }} />
-              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, 0.18) 50%, transparent 62%)', pointerEvents: 'none' }} />
-              <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
-                <div>
-                  <div className="label" style={{ color: 'rgba(255,255,255,0.8)' }}>Fuel Mission</div>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginTop: 4 }}>
-                    <span style={{ fontSize: 48, fontWeight: 700, lineHeight: 1, letterSpacing: '-0.02em', color: '#fff' }}>{missionCount}<span style={{ fontSize: 26, fontWeight: 600, color: 'rgba(255,255,255,0.75)' }}>/{MISSION_TARGET}</span></span>
-                    <span style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,0.8)' }}>fill-ups</span>
-                  </div>
-                </div>
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 12px', borderRadius: 999, background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.35)' }}>
-                  <Target size={13} fill="#fff" color="#fff" />
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.04em' }}>2-Week Mission</span>
-                </div>
-              </div>
-              <div style={{ position: 'relative', zIndex: 1 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <span style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,0.8)' }}>Fill up 4× at Pearl to complete</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>{missionDone ? 'Complete! 🏆' : `${missionLeft} to go`}</span>
-                </div>
-                {/* 4 × 25% target segments with gaps — each fill-up lights one up */}
-                <div style={{ display: 'flex', gap: 7 }}>
-                  {[...Array(MISSION_TARGET)].map((_, i) => (
-                    <div key={i} style={{ flex: 1, height: 16, borderRadius: 999, background: 'rgba(255,255,255,0.22)', border: '1px solid rgba(255,255,255,0.25)', overflow: 'hidden' }}>
-                      {i < missionCount && (
-                        <motion.div initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ duration: 0.45, delay: 0.15 + i * 0.15, ease: 'easeOut' }}
-                          style={{ width: '100%', height: '100%', borderRadius: 999, background: '#fff', boxShadow: '0 0 12px rgba(255,255,255,0.7)', transformOrigin: 'left', display: 'grid', placeItems: 'center' }}>
-                          <span style={{ fontSize: 10, lineHeight: 1 }}>⛽</span>
-                        </motion.div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.9)', marginTop: 8, textAlign: 'center', fontWeight: missionDone ? 700 : 500 }}>
-                  {missionDone
-                    ? `🏆 Mission complete! Your surprise: ${missionPrize ? `${missionPrize.img} ${missionPrize.label}` : '🎁 mystery prize unlocked'}`
-                    : `🎁 ${missionLeft} more fill-up${missionLeft === 1 ? '' : 's'} to unlock a surprise prize · tap for details`}
-                </p>
-              </div>
-            </div>
+              <button className="home-tier-progress" onClick={() => setOverlay('tiers')} aria-label={next ? `${away.toLocaleString()} lifetime points to ${next.name}` : 'Top membership tier reached'}>
+                <span className="home-tier-progress-copy">
+                  <span>{next ? `${away.toLocaleString()} pts to ${next.name}` : 'Top tier reached'}</span>
+                  <strong>{Math.round(pct)}%</strong>
+                </span>
+                <span className="home-tier-track">
+                  <motion.span initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.8, ease: 'easeOut' }} />
+                </span>
+              </button>
+
+              <button className="home-mission-row" onClick={() => setShowMissionInfo(true)} aria-label={`Fuel mission: ${missionDone ? 'complete' : `${missionCount} of ${MISSION_TARGET} fill-ups`}. View details`}>
+                <span className="home-mission-icon"><Target size={17} /></span>
+                <span className="home-mission-copy">
+                  <span className="home-mission-title">
+                    {missionDone ? 'Surprise unlocked' : 'Fuel mission'}
+                    <small>{missionDone ? 'Open prize' : '2 weeks'}</small>
+                  </span>
+                  <span className="home-mission-subtitle">
+                    {missionDone
+                      ? (missionPrize ? `${missionPrize.img} ${missionPrize.label} is ready` : 'Your mystery prize is ready')
+                      : `${missionLeft} more fill-up${missionLeft === 1 ? '' : 's'} to unlock a surprise`}
+                  </span>
+                </span>
+                <span className="home-mission-status" aria-hidden>
+                  <span className="home-mission-count">{missionCount}/{MISSION_TARGET}</span>
+                  <span className="home-mission-dots">
+                    {[...Array(MISSION_TARGET)].map((_, i) => <span key={i} className={i < missionCount ? 'is-active' : ''} />)}
+                  </span>
+                </span>
+              </button>
+            </section>
           </Card3D>
         </div>
 
