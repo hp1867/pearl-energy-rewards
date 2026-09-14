@@ -4,7 +4,9 @@ A React + Vite loyalty app and admin dashboard for Pearl Energy, with a Supabase
 
 ## Current status
 
-The Supabase migration is implemented locally and tested, but has **not yet been applied to the hosted project**. The connected MCP session still reports read-only access. Hosted Auth providers, the publishable key, Vercel environment variables and Edge deployments must be configured before live sign-in/transactions work.
+The database is now deployed to the confirmed Sydney Supabase project `zaooprrcqphzocigtrxg`: **17 public tables, 12 private tables and both Edge Functions**. Local and hosted migration histories match. The public tables have row-level security, the hosted security advisor has no findings, and a rolled-back hosted smoke test verified customer isolation, profile creation, POS retry handling and ledger reconciliation without leaving test records.
+
+The local app has its public Supabase connection settings. Hosted Auth now uses `https://pearl-energy-rewards.vercel.app`, with exact app/development return URLs and a 10-character password minimum. **The current Vercel build still needs its Supabase environment variables and a rebuild.** Main-admin provisioning, production email/OAuth setup and real-browser acceptance tests are also outstanding. This is a deployed database, not a claim of launch readiness.
 
 See [setup and handoff status](docs/database/SUPABASE.md), [database architecture](docs/database/ARCHITECTURE.md) and [POS contract](docs/database/POS-CONTRACT.md).
 
@@ -48,6 +50,8 @@ npm.cmd audit
 
 The SQL tests apply migrations to a real in-process PostgreSQL engine with an Auth role shim. They do not replace hosted security, real-browser, multi-connection load or POS-vendor acceptance tests.
 
+The operator-only [hosted smoke script](tests/hosted-smoke.sql) must be executed as a whole, in one session. All its fixtures are rolled back. It tests database roles and RPCs, not actual email delivery, user sign-in or a POS vendor's network integration.
+
 Vercel should use `npm run build` and `dist`. Configure the Supabase `VITE_` variables in Vercel and rebuild; committing code alone does not configure cloud credentials or create tables. `vercel.json` supplies security headers.
 
 ## Structure
@@ -57,6 +61,7 @@ src/
   services/data.js             provider selection; explicit demo isolation
   services/supabaseProvider.js consumer + admin database adapters
   supabase/client.js           public-key-only browser client
+  supabase/database.types.ts   types generated from the deployed schema
   context/AppContext.jsx      auth, profile, catalogs and expiry refresh
   screens/                    consumer UI
   admin/                      admin dashboard
@@ -65,6 +70,7 @@ supabase/
   functions/pos-api/           signed server-to-server POS boundary
   functions/push-dispatch/     bounded notification worker
 tests/                        SQL, POS contract and night-deal tests
+deployment/supabase/           minimal, reviewed hosted Auth configuration
 docs/database/                architecture, setup and integration contract
 ```
 

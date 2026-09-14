@@ -52,6 +52,17 @@ before(async () => {
 })
 after(() => db.close())
 
+test('hosted smoke script exercises real roles and rolls back every fixture', async () => {
+  const count = () => one('select (select count(*) from auth.users) as users, (select count(*) from public.customers) as customers, (select count(*) from public.transactions) as transactions')
+  const before = await count()
+  try { await db.exec(await readFile(new URL('./hosted-smoke.sql', import.meta.url), 'utf8')) }
+  catch (error) {
+    await db.exec('rollback; reset role')
+    throw new Error(`Hosted smoke script: ${error.message}`)
+  }
+  assert.deepEqual(await count(), before)
+})
+
 test('migration enables RLS on every exposed table; anonymous and customer writes are denied', async () => {
   const rows = (await query("select relname from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind='r' and not c.relrowsecurity")).rows
   assert.deepEqual(rows, [])

@@ -36,6 +36,7 @@ coverage/
 backups/
 exports/
 supabase/.temp/
+deployment/supabase/.temp/
 supabase/.branches/
 supabase/.env
 supabase/.env.*
