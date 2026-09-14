@@ -1,11 +1,9 @@
-// Single entry point. VITE_DATA_MODE=local explicitly selects the reversible
-// client-demo database even when Firebase credentials remain configured.
-import { isFirebaseConfigured } from '../firebase/config'
-import { createLocalProvider } from './localProvider'
-import { createFirebaseProvider } from './firebaseProvider'
+// No silent fallback to demo accounts when the live backend is unavailable.
+import { createSupabaseProvider } from './supabaseProvider'
 
-const requestedMode = String(import.meta.env.VITE_DATA_MODE || 'auto').trim().toLowerCase()
-const useFirebase = requestedMode !== 'local' && isFirebaseConfigured
+const requestedMode = String(import.meta.env.VITE_DATA_MODE || 'supabase').trim().toLowerCase()
 
-export const data = useFirebase ? createFirebaseProvider() : createLocalProvider()
-export const DATA_MODE = data.mode // 'firebase' | 'local'
+export const data = requestedMode === 'local'
+  ? (await import('./localProvider')).createLocalProvider()
+  : createSupabaseProvider()
+export const DATA_MODE = data.mode

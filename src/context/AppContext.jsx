@@ -5,158 +5,115 @@ import { visibleNightDeals } from '../services/nightDeals'
 
 const AppContext = createContext(null)
 export const useApp = () => useContext(AppContext)
+const preview = DATA_MODE === 'local'
 
 export function AppProvider({ children }) {
-  const [tab, setTab] = useState('home')
-  const [overlay, setOverlay] = useState(null)
-  const [overlayArg, setOverlayArg] = useState(null)
-  const [toast, setToast] = useState(null)
+  const [tab, setTab] = useState('home'), [overlay, setOverlay] = useState(null), [overlayArg, setOverlayArg] = useState(null)
+  const [toast, setToast] = useState(null), [user, setUser] = useState(undefined), [member, setMember] = useState(null)
+  const [connectionError, setConnectionError] = useState(''), [profileError, setProfileError] = useState('')
+  const [retry, setRetry] = useState(0), [pendingRewards, setPendingRewards] = useState([])
+  const [offers, setOffers] = useState(preview ? seedOffers : [])
+  const [rewards, setRewards] = useState(preview ? seedRewards : [])
+  const [fuelPrices, setFuelPrices] = useState(preview ? seedFuel : [])
+  const [menu, setMenu] = useState(preview ? seedMenu : [])
+  const [categories, setCategories] = useState(preview ? seedCats : [])
+  const [stations, setStations] = useState(preview ? seedStations : [])
+  const [notifications, setNotifications] = useState(preview ? seedNotifs : [])
+  const [nightDealRows, setNightDealRows] = useState([]), [catalogClock, setCatalogClock] = useState(Date.now())
+  const notify = useCallback(msg => { setToast(msg); setTimeout(() => setToast(null), 3500) }, [])
 
-  const [user, setUser] = useState(undefined)
-  const [member, setMember] = useState(null)
-
-  // Pending rewards (redeemed but not yet scanned at POS)
-  const [pendingRewards, setPendingRewards] = useState([])
-
-  // Keep coupon state subscribed to the server projection. POS/reward services
-  // are authoritative; the browser never marks a coupon consumed on its own.
+  useEffect(() => data.onError?.(setConnectionError), [])
   useEffect(() => {
-    if (!user) { setPendingRewards([]); return }
-    if (data.subscribePendingCoupons) {
-      return data.subscribePendingCoupons(user.uid, (rows) => setPendingRewards(rows || []))
-    }
-    if (data.getPendingCoupons) {
-      data.getPendingCoupons(user.uid).then(r => {
-        setPendingRewards(r || [])
-      }).catch(() => {})
-    }
-  }, [user])
-
-  const [offers, setOffers] = useState(seedOffers)
-  const [rewards, setRewards] = useState(seedRewards)
-  const [fuelPrices, setFuelPrices] = useState(seedFuel)
-  const [menu, setMenu] = useState(seedMenu)
-  const [categories, setCategories] = useState(seedCats)
-  const [stations, setStations] = useState(seedStations)
-  const [notifications, setNotifications] = useState(seedNotifs)
-  const [nightDealRows, setNightDealRows] = useState([])
-  const [catalogClock, setCatalogClock] = useState(Date.now())
-  const nightDeals = useMemo(
-    () => visibleNightDeals(nightDealRows, new Date(catalogClock)),
-    [nightDealRows, catalogClock],
-  )
-
-  const notify = useCallback((msg) => { setToast(msg); setTimeout(() => setToast(null), 2400) }, [])
-
-  useEffect(() => data.onAuth(setUser), [])
+    const timer = setTimeout(() => {
+      setUser(current => current === undefined ? null : current)
+      setConnectionError('Sign-in is taking longer than expected. Check your connection and retry.')
+    }, 15000)
+    const stop = data.onAuth(value => { clearTimeout(timer); setUser(value) }, error => setConnectionError(error.message))
+    return () => { clearTimeout(timer); stop?.() }
+  }, [retry])
 
   useEffect(() => {
-    if (!user) { setMember(null); return }
-    return data.subscribeCustomer(user.uid, setMember)
+    setMember(null); setProfileError('')
+    if (!user || user.recovery) return
+    const timer = setTimeout(() => setProfileError('Your profile could not be loaded. Please retry; your points have not been changed.'), 15000)
+    const stop = data.subscribeCustomer(user.uid, value => {
+      if (!value) return
+      clearTimeout(timer); setMember(value); setProfileError(''); setConnectionError('')
+    }, error => { clearTimeout(timer); setProfileError(error.message) })
+    return () => { clearTimeout(timer); stop?.() }
+  }, [user, retry])
+
+  useEffect(() => {
+    setPendingRewards([])
+    if (!user || user.recovery) return
+    return data.subscribePendingCoupons?.(user.uid, rows => setPendingRewards(rows || []))
   }, [user])
 
   useEffect(() => {
-    if (!user) return undefined
-    const unsubscribes = [
-      data.subscribeOffers(setOffers), data.subscribeRewards(setRewards),
-      data.subscribeFuel(setFuelPrices), data.subscribeMenu(setMenu),
-      data.subscribeCategories(setCategories), data.subscribeStations(setStations),
-      data.subscribeNotifications(setNotifications),
-      data.subscribeNightDeals?.(setNightDealRows),
+    if (!user) {
+      if (!preview) { setOffers([]); setRewards([]); setFuelPrices([]); setMenu([]); setCategories([]); setStations([]); setNotifications([]); setNightDealRows([]) }
+      return
+    }
+    const stops = [
+      data.subscribeOffers(setOffers), data.subscribeRewards(setRewards), data.subscribeFuel(setFuelPrices),
+      data.subscribeMenu(setMenu), data.subscribeCategories(setCategories), data.subscribeStations(setStations),
+      data.subscribeNotifications(setNotifications), data.subscribeNightDeals?.(setNightDealRows),
     ]
-    return () => unsubscribes.forEach((unsubscribe) => unsubscribe?.())
-  }, [user])
+    return () => stops.forEach(stop => stop?.())
+  }, [user, retry])
 
-  // Re-evaluate time-bounded catalogs even when Firestore itself has not
-  // changed. This removes a deal from an already-open app at its cutoff.
+  // Expiration updates even in an already-open app with no realtime message.
+  // New catalog rows must be compared with current time, not the last expiry.
+  useEffect(() => { setCatalogClock(Date.now()) }, [nightDealRows, offers, rewards, menu, categories, fuelPrices, stations, notifications])
   useEffect(() => {
-    const now = Date.now()
-    const nextBoundary = nightDealRows.flatMap((deal) => [deal.startsAt, deal.sellUntil, deal.safetyCutoffAt])
-      .map((value) => new Date(value).getTime())
-      .filter((time) => Number.isFinite(time) && time > now)
-      .sort((a, b) => a - b)[0]
-    if (!nextBoundary) return undefined
-    const timer = window.setTimeout(() => setCatalogClock(Date.now()), Math.min(nextBoundary - now + 50, 2147483647))
-    return () => window.clearTimeout(timer)
-  }, [nightDealRows, catalogClock])
+    const boundaries = [...nightDealRows, ...offers, ...rewards, ...menu, ...categories, ...fuelPrices, ...stations, ...notifications].flatMap(row => [row.startsAt, row.endsAt, row.sellUntil, row.safetyCutoffAt])
+      .map(value => new Date(value).getTime()).filter(time => Number.isFinite(time) && time > Date.now()).sort((a,b) => a-b)
+    if (!boundaries.length) return
+    const timer = setTimeout(() => setCatalogClock(Date.now()), Math.min(boundaries[0]-Date.now()+50, 2147483647))
+    return () => clearTimeout(timer)
+  }, [nightDealRows, offers, rewards, menu, categories, fuelPrices, stations, notifications, catalogClock])
+  const nightDeals = useMemo(() => visibleNightDeals(nightDealRows, new Date(catalogClock)), [nightDealRows, catalogClock])
+  const visible = rows => rows.filter(row => row.active !== false && (!row.startsAt || new Date(row.startsAt).getTime() <= catalogClock) && (!row.endsAt || new Date(row.endsAt).getTime() > catalogClock))
 
-  const signup = useCallback(async (fields) => {
-    await data.signUp(fields); notify('Welcome to Pearl Energy Rewards ✨')
-  }, [notify])
-
-  const login = useCallback(async (creds) => {
-    await data.signIn(creds); notify('Welcome back 👋')
-  }, [notify])
-
-  const loginProvider = useCallback(async (name) => {
-    await data.signInWithProvider(name); notify(`Signed in with ${name}`)
-  }, [notify])
-
-  const logout = useCallback(async () => { await data.signOutUser(); setTab('home'); setOverlay(null); notify('Logged out') }, [notify])
-
-  // Firebase performs this as one atomic server operation: ledger, balance,
-  // redemption and coupon either all commit or none of them do.
-  const redeemReward = useCallback(async (reward) => {
+  const signup = async fields => {
+    const result = await data.signUp(fields)
+    if (!result?.requiresConfirmation) notify('Welcome to Pearl Energy Rewards')
+    return result
+  }
+  const login = async creds => { await data.signIn(creds); notify('Welcome back') }
+  const loginProvider = name => data.signInWithProvider(name)
+  const logout = async () => { await data.signOutUser(); setTab('home'); setOverlay(null); setConnectionError(''); notify('Logged out') }
+  const redeemReward = async reward => {
     if (!member) return { ok: false, message: 'Please log in first' }
-    const result = await data.redeemReward(member.uid, reward)
-    if (!result?.ok) return result || { ok: false, message: 'Redemption failed' }
-    if (result.coupon) {
-      setPendingRewards((previous) => previous.some((item) => item.id === result.coupon.id)
-        ? previous
-        : [result.coupon, ...previous])
-    }
-    notify(`✅ ${reward.title} is active in My Coupons — valid for 7 days, auto-applies at POS.`)
-    return { ...result, reward: result.coupon }
-  }, [member, notify])
-
-  // Activate a pending reward (called when scanned at POS)
-  const activateReward = useCallback(async (rewardId) => {
-    setPendingRewards(prev => prev.map(r => 
-      r.id === rewardId ? { ...r, status: 'active', activatedAt: new Date().toISOString() } : r
-    ))
-    if (data.activatePendingCoupon && member) {
-      data.activatePendingCoupon(member.uid, rewardId).catch(e => console.error('Failed to persist activation', e))
-    }
-    notify('✅ Reward activated!')
-    return { ok: true }
-  }, [member, notify])
-
-  // Mark reward as fully redeemed (used)
-  const useReward = useCallback(async (rewardId) => {
-    setPendingRewards(prev => prev.map(r => 
-      r.id === rewardId ? { ...r, status: 'redeemed', usedAt: new Date().toISOString() } : r
-    ))
-    if (data.usePendingCoupon && member) {
-      data.usePendingCoupon(member.uid, rewardId).catch(e => console.error('Failed to persist use', e))
-    }
-    notify('✅ Reward redeemed!')
-    return { ok: true }
-  }, [member, notify])
-
-  // Remove expired/used rewards
-  const removeReward = useCallback(async (rewardId) => {
-    setPendingRewards(prev => prev.filter(r => r.id !== rewardId))
-    if (data.removePendingCoupon && member) {
-      data.removePendingCoupon(member.uid, rewardId).catch(e => console.error('Failed to persist removal', e))
-    }
-  }, [member])
-
-  const lookupCustomer = useCallback((customerNumber) => data.lookupCustomer(customerNumber), [])
-
-  const updateProfile = useCallback(async (fields) => {
+    try {
+      const result = await data.redeemReward(member.uid, reward)
+      if (!result?.ok) return result || { ok: false, message: 'Redemption failed' }
+      if (result.coupon) setPendingRewards(previous => previous.some(row => row.id === result.coupon.id) ? previous : [result.coupon,...previous])
+      notify('Your reward is active in My Coupons. Show your membership card at the register.')
+      return { ...result, reward: result.coupon }
+    } catch (error) { return { ok: false, message: error.message } }
+  }
+  const couponAction = async (method, id) => {
+    try {
+      const result = await data[method](member.uid, id)
+      if (!result?.ok) { notify(result?.message || 'The request was not confirmed.'); return result }
+      setPendingRewards(await data.getPendingCoupons(member.uid))
+      return result
+    } catch (error) { notify(error.message); return { ok: false } }
+  }
+  const updateProfile = async fields => {
     if (!member) return { ok: false, message: 'Please log in first' }
-    await data.updateProfile(member.uid, fields)
-    notify('Profile updated ✅')
-    return { ok: true }
-  }, [member, notify])
-
+    await data.updateProfile(member.uid, fields); notify('Profile updated'); return { ok: true }
+  }
   const value = {
-    mode: DATA_MODE,
-    tab, setTab, overlay, setOverlay, overlayArg, setOverlayArg, toast, notify,
-    user, member, authed: !!member, resolving: user === undefined,
-    offers, rewards, fuelPrices, menu, categories, stations, notifications, nightDeals,
-    pendingRewards, setPendingRewards, redeemReward, activateReward, useReward, removeReward,
-    signup, login, loginProvider, logout, lookupCustomer, updateProfile,
+    mode: DATA_MODE, tab, setTab, overlay, setOverlay, overlayArg, setOverlayArg, toast, notify,
+    user, member, authed: !!member, resolving: user === undefined, profileError, connectionError,
+    retryConnection: () => { setProfileError(''); setConnectionError(''); setRetry(value => value+1) },
+    offers: visible(offers), rewards: visible(rewards), menu: visible(menu), categories: visible(categories),
+    fuelPrices: visible(fuelPrices), stations: visible(stations), notifications: visible(notifications), nightDeals,
+    pendingRewards, setPendingRewards, redeemReward,
+    activateReward: id => couponAction('activatePendingCoupon', id), useReward: id => couponAction('usePendingCoupon', id), removeReward: id => couponAction('removePendingCoupon', id),
+    signup, login, loginProvider, logout, lookupCustomer: number => data.lookupCustomer(number), updateProfile,
   }
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }

@@ -18,7 +18,7 @@ export default function OffersScreen() {
   return (
     <div className="screen">
       <div className="scroll">
-        <Header title="Offers" sub="General store promotions - Auto applied" />
+        <Header title="Offers" sub="Store promotions — check availability at the register" />
         <div className="h-scroll" style={{ marginTop: 4 }}>
           {CATS.map((c) => (
             <button key={c} className={`chip ${cat === c ? 'active' : ''}`} onClick={() => setCat(c)}>{c}</button>
@@ -45,7 +45,7 @@ export default function OffersScreen() {
                         <Clock size={13} /> Expires {o.expiry}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--primary)', fontWeight: 700, marginTop: 4 }}>
-                        <span style={{ fontSize: 12 }}>🏷️</span> Auto apply to POS
+                        <span style={{ fontSize: 12 }}>🏷️</span> Show your member card at checkout
                       </div>
                     </div>
                     <span className="card-open-cue">View offer <ChevronRight size={16} /></span>

@@ -31,3 +31,12 @@ yarn-error.log*
 
 # Testing
 coverage/
+
+# Database exports may contain personal data. Keep encrypted backups outside Git.
+backups/
+exports/
+supabase/.temp/
+supabase/.branches/
+supabase/.env
+supabase/.env.*
+!supabase/.env.example

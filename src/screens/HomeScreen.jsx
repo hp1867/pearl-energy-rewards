@@ -8,7 +8,7 @@ import MapView from '../components/MapView'
 import { integrations } from '../config/integrations'
 import { tierTheme } from '../theme/tiers'
 import { hotDeals, tiers } from '../data/mockData'
-import { MISSION_TARGET, MISSION_PRIZES } from '../services/localProvider'
+import { MISSION_TARGET, MISSION_PRIZES } from '../data/loyaltyCampaigns'
 import { formatMoney } from '../services/nightDeals'
 
 const greeting = () => {
@@ -19,7 +19,9 @@ const greeting = () => {
 const DEAL_ICON = [Zap, Cookie, Droplet, Zap, Cookie]
 
 export default function HomeScreen() {
-  const { member, offers, stations, nightDeals, setTab, setOverlay, setOverlayArg, notify } = useApp()
+  const { mode, member, offers, menu, stations, nightDeals, setTab, setOverlay, setOverlayArg, notify } = useApp()
+  const featuredProducts = mode === 'local' ? hotDeals : menu.filter(item => item.avail !== false).slice(0, 5)
+  const spinsReady = member.wheelActive !== false && !member.promotionHold ? member.wheelSpins || 0 : 0
   const mapsReady = integrations.maps.ready
   const nearest = stations[0]
   const firstNightDeal = nightDeals[0]
@@ -128,10 +130,10 @@ export default function HomeScreen() {
                 <span className="home-mission-copy">
                   <span className="home-mission-title">
                     {missionDone ? 'Surprise unlocked' : 'Fuel mission'}
-                    <small>{missionDone ? 'Open prize' : '2 weeks'}</small>
+                    <small>{member.missionActive === false ? 'Paused' : missionDone ? 'Open prize' : '2 weeks'}</small>
                   </span>
                   <span className="home-mission-subtitle">
-                    {missionDone
+                    {member.missionActive === false ? 'This mission is currently paused' : member.promotionHold ? 'A refunded promotion needs staff review' : missionDone
                       ? (missionPrize ? `${missionPrize.img} ${missionPrize.label} is ready` : 'Your mystery prize is ready')
                       : `${missionLeft} more fill-up${missionLeft === 1 ? '' : 's'} to unlock a surprise`}
                   </span>
@@ -155,12 +157,12 @@ export default function HomeScreen() {
             <span style={{ flex: 1 }}>
               <span style={{ display: 'block', fontWeight: 800, fontSize: 14.5 }}>Spin & Win</span>
               <span style={{ display: 'block', fontSize: 11.5, opacity: 0.88, marginTop: 2 }}>
-                {(member.wheelSpins || 0) > 0
+                {member.wheelActive === false ? 'Spin & Win is currently paused' : member.promotionHold ? 'A refunded promotion needs staff review' : spinsReady > 0
                   ? `${member.wheelSpins} spin${member.wheelSpins === 1 ? '' : 's'} ready — tap to play!`
                   : 'Buy snacks, lollies, biscuits or bakery — or spend $50 — to earn a spin'}
               </span>
             </span>
-            {(member.wheelSpins || 0) > 0 && (
+            {spinsReady > 0 && (
               <span style={{ background: '#fff', color: '#5b4bd4', fontWeight: 800, fontSize: 12, padding: '4px 10px', borderRadius: 999 }}>{member.wheelSpins}</span>
             )}
           </button>
@@ -220,19 +222,20 @@ export default function HomeScreen() {
         </div>
 
         {/* Hot Deals */}
-        <div className="section-title"><h3>Hot Deals</h3><button onClick={() => setTab('menu')}>View All</button></div>
+        <div className="section-title"><h3>{mode === 'local' ? 'Hot Deals' : 'In-store picks'}</h3><button onClick={() => setTab('menu')}>View All</button></div>
+        {featuredProducts.length === 0 && <p style={{ padding: '0 20px', fontSize: 13, color: 'var(--muted)' }}>New products will appear here when published by your store.</p>}
         <div className="h-scroll fade-mask">
-          {hotDeals.map((d, i) => {
+          {featuredProducts.map((d, i) => {
             const Icon = DEAL_ICON[i % DEAL_ICON.length]
             return (
-              <button key={d.id} className="tap-card" onClick={() => openItem('hot-deal', d)} aria-label={`View deal: ${d.name}`} style={{ width: 140, background: '#fff', borderRadius: 12, padding: 12, border: '1px solid rgba(194,198,212,0.2)', boxShadow: 'var(--shadow-sm)', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'left' }}>
+              <button key={d.id} className="tap-card" onClick={() => openItem(mode === 'local' ? 'hot-deal' : 'menu', d)} aria-label={`View item: ${d.name}`} style={{ width: 140, background: '#fff', borderRadius: 12, padding: 12, border: '1px solid rgba(194,198,212,0.2)', boxShadow: 'var(--shadow-sm)', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'left' }}>
                 <div style={{ position: 'relative', width: 80, height: 80, borderRadius: 8, background: 'var(--surface-low)', display: 'grid', placeItems: 'center', marginBottom: 12 }}>
-                  <span style={{ position: 'absolute', top: -8, right: -8, background: 'var(--error)', color: '#fff', fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 999 }}>-{d.off}%</span>
+                  {d.off != null && <span style={{ position: 'absolute', top: -8, right: -8, background: 'var(--error)', color: '#fff', fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 999 }}>-{d.off}%</span>}
                   <span style={{ fontSize: 34 }}>{d.img}</span>
                 </div>
                 <p style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink)', textAlign: 'center', minHeight: 32 }}>{d.name}</p>
                 <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--primary)' }}>{d.now}</span>
+                  <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--primary)' }}>{d.now || d.price}</span>
                   <span style={{ fontSize: 11, color: 'var(--muted)', textDecoration: 'line-through' }}>{d.was}</span>
                   <ArrowUpRight size={14} color="var(--primary)" />
                 </div>
@@ -242,9 +245,9 @@ export default function HomeScreen() {
         </div>
 
         {/* Nearest Station — live per-store prices */}
-        <div className="section-title"><h3>Nearest Station</h3><button onClick={() => setOverlay('fuel')}>Fuel prices</button></div>
+        <div className="section-title"><h3>Featured Station</h3><button onClick={() => setOverlay('fuel')}>Fuel prices</button></div>
         <div style={{ padding: '0 20px 12px' }}>
-          <div onClick={() => openLocator(nearest.id)} style={{ background: '#fff', borderRadius: 16, border: '1px solid rgba(194,198,212,0.3)', boxShadow: 'var(--shadow-sm)', overflow: 'hidden' }}>
+          {nearest ? <div onClick={() => openLocator(nearest.id)} style={{ background: '#fff', borderRadius: 16, border: '1px solid rgba(194,198,212,0.3)', boxShadow: 'var(--shadow-sm)', overflow: 'hidden' }}>
             <div style={{ padding: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--surface-variant)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(0,87,184,0.1)', display: 'grid', placeItems: 'center', color: 'var(--primary)' }}><MapPin size={20} /></div>
@@ -261,12 +264,12 @@ export default function HomeScreen() {
                   {idx > 0 && <div style={{ width: 1, height: 32, background: 'rgba(194,198,212,0.5)', marginRight: 16 }} />}
                   <div style={{ textAlign: 'center', marginRight: idx < 2 ? 16 : 0 }}>
                     <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', letterSpacing: '0.05em', marginBottom: 2 }}>{k}</p>
-                    <p style={{ fontSize: 18, fontWeight: 700, color: 'var(--ink)' }}>{Number(v).toFixed(1)}</p>
+                    <p style={{ fontSize: 18, fontWeight: 700, color: 'var(--ink)' }}>{v == null ? '—' : Number(v).toFixed(1)}</p>
                   </div>
                 </div>
               ))}
             </div>
-          </div>
+          </div> : <p style={{ padding: 16, color: 'var(--muted)' }}>Stations will appear here when they are published by Pearl Energy.</p>}
         </div>
 
         {/* GPS station map — tap to explore the whole network */}
@@ -274,7 +277,7 @@ export default function HomeScreen() {
         <div style={{ padding: '0 20px 4px' }}>
           <div onClick={() => openLocator()} style={{ position: 'relative', height: 200, borderRadius: 20, overflow: 'hidden', boxShadow: 'var(--shadow-md)', cursor: 'pointer', background: 'linear-gradient(160deg,#e6eef9 0%,#dde7f4 40%,#e9e2d6 100%)' }}>
             {mapsReady ? (
-              <MapView stations={stations} activeId={nearest.id} onSelect={(s) => openLocator(s.id)} />
+              <MapView stations={stations} activeId={nearest?.id} onSelect={(s) => openLocator(s.id)} />
             ) : (
               <>
                 <svg width="100%" height="100%" style={{ position: 'absolute', inset: 0, opacity: 0.4 }}>
@@ -290,7 +293,7 @@ export default function HomeScreen() {
             )}
             {/* overlays (don't block map gestures) */}
             <div style={{ position: 'absolute', left: 12, top: 12, display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(6px)', padding: '7px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700, color: 'var(--primary)', boxShadow: 'var(--shadow-sm)', pointerEvents: 'none' }}>
-              <MapPin size={14} /> 170+ stores · NSW · VIC · QLD
+              <MapPin size={14} /> {stations.length} published stations
             </div>
             <div style={{ position: 'absolute', right: 12, bottom: 12, display: 'flex', alignItems: 'center', gap: 6, background: 'var(--grad-blue)', color: '#fff', padding: '9px 14px', borderRadius: 999, fontSize: 13, fontWeight: 700, boxShadow: 'var(--shadow-blue)', pointerEvents: 'none' }}>
               <Navigation size={15} /> Open map

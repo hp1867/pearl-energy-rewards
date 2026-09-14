@@ -8,8 +8,7 @@ import { readiness } from '../config/integrations'
 import { menuGroups } from '../data/mockData'
 import { NIGHT_DEAL_PERMISSION, newNightDealDefaults, normaliseNightDeal, toDateTimeLocalValue } from '../services/nightDeals'
 
-// Local mode has labelled demo passwords only. Firebase mode uses Firebase Auth;
-// signed custom claims and Firestore Rules enforce main-admin/branch permissions.
+// Live staff access is checked against Supabase role tables on every request.
 
 const SECTIONS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, adminOnly: true },
@@ -23,6 +22,7 @@ const SECTIONS = [
   { id: 'customers', label: 'Customers', icon: Users, adminOnly: true },
   { id: 'notifications', label: 'Notifications', icon: Bell, adminOnly: true },
   { id: 'staffAccess', label: 'Staff Access', icon: ShieldCheck, adminOnly: true },
+  { id: 'campaigns', label: 'Loyalty Campaigns', icon: Award, adminOnly: true },
 ]
 
 // CRUD field configs ---------------------------------------------------------
@@ -80,7 +80,7 @@ const CONFIGS = {
       { key: 'title', label: 'Title' }, { key: 'sub', label: 'Subtitle', full: true },
       { key: 'cat', label: 'Category' }, { key: 'price', label: 'Price' },
       { key: 'img', label: 'Emoji', placeholder: '☕' }, { key: 'accent', label: 'Accent colour', type: 'color' },
-      { key: 'expiry', label: 'Expiry' }, { key: 'tag', label: 'Badge', placeholder: 'NEW' },
+      { key: 'endsAt', label: 'Offer end date & time', type: 'datetime-local', required: true }, { key: 'tag', label: 'Badge', placeholder: 'NEW' },
     ],
   },
   rewards: {
@@ -88,7 +88,7 @@ const CONFIGS = {
     columns: [['img', ''], ['title', 'Reward'], ['cat', 'Category'], ['cost', 'Points']],
     fields: [
       { key: 'title', label: 'Reward title' }, { key: 'cat', label: 'Category' },
-      { key: 'cost', label: 'Cost (points)', type: 'number' }, { key: 'img', label: 'Emoji', placeholder: '⛽' },
+      { key: 'cost', label: 'Cost (points)', type: 'number', step: '1', required: true }, { key: 'img', label: 'Emoji', placeholder: '⛽' },
       { key: 'color', label: 'Colour', type: 'color' },
     ],
   },
@@ -111,6 +111,7 @@ const CONFIGS = {
       { key: 'state', label: 'State', placeholder: 'VIC' },
       { key: 'open', label: 'Open now', type: 'bool' },
       { key: 'hours', label: 'Trading hours', placeholder: '24 Hours' },
+      { key: 'timezone', label: 'IANA timezone', placeholder: 'Australia/Sydney' },
       { key: 'lat', label: 'Latitude', type: 'number', step: '0.0001' },
       { key: 'lng', label: 'Longitude', type: 'number', step: '0.0001' },
       { key: 'amenities', label: 'Amenities (comma separated)', type: 'csv', full: true },
@@ -124,11 +125,16 @@ const CONFIGS = {
   },
 }
 
+for (const name of ['products','categories','offers','rewards','fuel','stations']) {
+  CONFIGS[name].fields.push({ key: 'active', label: 'Published to customers', type: 'bool' })
+}
 const groupLabel = (k) => { const g = menuGroups.find((x) => x.key === k); return g ? `${g.emoji} ${g.label}` : (k || '—') }
 
 export default function AdminApp() {
   const [access, setAccess] = useState(undefined)
   const [section, setSection] = useState(null)
+  const [connectionError, setConnectionError] = useState('')
+  useEffect(() => data.onError?.(setConnectionError), [])
 
   useEffect(() => data.adminOnAuth(setAccess), [])
 
@@ -144,7 +150,7 @@ export default function AdminApp() {
   }, [access, section])
 
   if (access === undefined) return <div className="login"><div className="box"><h2>Staff Console</h2><p>Checking access…</p></div></div>
-  if (!access) return <Login onOk={setAccess} />
+  if (!access) return <Login onOk={value => { setAccess(value); setConnectionError('') }} connectionError={connectionError} />
 
   const current = allowedSections.find((item) => item.id === section)
   const title = section === 'dashboard' ? 'Dashboard'
@@ -176,30 +182,32 @@ export default function AdminApp() {
         })}
         <a className="nav-item" href="/index.html" target="_blank" rel="noreferrer"><ExternalLink size={18} /> Open the app</a>
         <button className="nav-item" onClick={signOutAdmin}><LogOut size={18} /> Sign out</button>
-        <div className="foot"><b>{access.displayName}</b><br />{access.admin ? 'Main admin · all stations' : 'Branch manager · limited access'}<br /><br />Mode: {DATA_MODE === 'firebase' ? 'Firebase (live)' : 'Local demo'}</div>
+        <div className="foot"><b>{access.displayName}</b><br />{access.admin ? 'Main admin · all stations' : 'Branch manager · limited access'}<br /><br />Mode: {DATA_MODE === 'supabase' ? 'Supabase (live)' : 'Local demo'}</div>
       </aside>
 
       <main className="content">
         <div className="topbar">
           <div>
             <h1>{title}</h1>
-            <div className="sub">{access.admin ? 'Changes save to the database and update every app instantly.' : 'You can manage Tonight Only offers for your assigned station only.'}</div>
+            <div className="sub">{access.admin ? 'Changes save to the database and refresh connected apps automatically.' : 'You can manage Tonight Only offers for your assigned station only.'}</div>
           </div>
-          <span className={`mode-badge ${DATA_MODE}`}>{DATA_MODE === 'firebase' ? '● Connected to Firebase' : '● Demo mode (local DB)'}</span>
+          <span className={`mode-badge ${DATA_MODE}`}>{DATA_MODE === 'supabase' ? '● Supabase mode' : '● Demo mode (local DB)'}</span>
         </div>
 
+        {connectionError && <div role="alert" className="panel-error">{connectionError} <button onClick={() => window.location.reload()}>Reload</button></div>}
         {section === 'dashboard' && <Dashboard />}
         {CONFIGS[section] && <Crud key={section} cfg={CONFIGS[section]} access={access} />}
         {section === 'customers' && <Customers />}
         {section === 'notifications' && <Notifications />}
         {section === 'staffAccess' && <StaffAccess />}
+        {section === 'campaigns' && <Campaigns />}
       </main>
     </div>
   )
 }
 
 // --- Login ------------------------------------------------------------------
-function Login({ onOk }) {
+function Login({ onOk, connectionError }) {
   const [email, setEmail] = useState('')
   const [pw, setPw] = useState('')
   const [err, setErr] = useState('')
@@ -215,13 +223,13 @@ function Login({ onOk }) {
       <div className="box">
         <h2>Staff Console</h2>
         <p>Pearl Energy Rewards — permission-controlled access</p>
-        {err && <div className="err">{err}</div>}
-        {DATA_MODE === 'firebase' && <input type="email" placeholder="Staff email" value={email} onChange={(e) => setEmail(e.target.value)} />}
+        {(err || connectionError) && <div role="alert" className="err">{err || connectionError}</div>}
+        {DATA_MODE === 'supabase' && <input type="email" placeholder="Staff email" value={email} onChange={(e) => setEmail(e.target.value)} />}
         <input type="password" placeholder="Password" value={pw} onChange={(e) => setPw(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && submit()} />
         <button className="btn" onClick={submit} disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
         {DATA_MODE === 'local'
           ? <div className="hint">Main admin: <b>pearl-admin</b><br />Altona manager: <b>altona-manager</b></div>
-          : <div className="hint">Production access comes from Firebase Auth custom claims assigned by the main admin.</div>}
+          : <div className="hint">Production access uses Supabase Auth and live database permissions assigned by the main admin.</div>}
       </div>
     </div>
   )
@@ -239,15 +247,17 @@ function Dashboard() {
   const rewards = useLive(data.subscribeRewards)
   const nightDeals = useLive(data.subscribeNightDeals)
   const [customers, setCustomers] = useState([])
-  useEffect(() => { data.adminListCustomers().then(setCustomers) }, [])
-  const totalPoints = customers.reduce((s, c) => s + (c.points || 0), 0)
+  const [summary, setSummary] = useState(null)
+  useEffect(() => { data.adminListCustomers().then(setCustomers).catch(() => {}); data.adminSummary?.().then(setSummary).catch(() => {}) }, [])
+  const totalPoints = summary?.points ?? customers.reduce((s, c) => s + (c.points || 0), 0)
+  const publishedNow = row => row.active !== false && (!row.startsAt || new Date(row.startsAt).getTime() <= Date.now()) && (!row.endsAt || new Date(row.endsAt).getTime() > Date.now())
 
   const stats = [
-    { k: 'Customers', v: customers.length, d: 'registered members' },
+    { k: 'Customers', v: summary?.customers ?? customers.length, d: 'registered members' },
     { k: 'Points in circulation', v: totalPoints.toLocaleString(), d: 'across all members' },
-    { k: 'Products', v: products.length, d: 'in the menu' },
-    { k: 'Active offers', v: offers.length, d: 'live promotions' },
-    { k: 'Tonight Only', v: nightDeals.length, d: 'available right now' },
+    { k: 'Products', v: products.filter(publishedNow).length, d: 'published menu items' },
+    { k: 'Active offers', v: offers.filter(publishedNow).length, d: 'published promotions' },
+    { k: 'Tonight Only', v: nightDeals.filter(row => row.status === 'active' && row.quantityAvailable > 0 && new Date(row.startsAt).getTime() <= Date.now() && new Date(row.sellUntil).getTime() > Date.now() && new Date(row.safetyCutoffAt).getTime() > Date.now()).length, d: 'current selling window' },
   ]
   const checks = readiness()
   const liveCount = checks.filter((c) => c.ready).length
@@ -257,7 +267,7 @@ function Dashboard() {
       <div className="cards">{stats.map((s) => <div className="stat" key={s.k}><div className="k">{s.k}</div><div className="v">{s.v}</div><div className="d">{s.d}</div></div>)}</div>
 
       <div className="panel" style={{ marginBottom: 22 }}>
-        <div className="phead"><h3>Launch readiness</h3><span className="tag">{liveCount}/{checks.length} live</span></div>
+        <div className="phead"><h3>Integration configuration</h3><span className="tag">{liveCount}/{checks.length} configured</span></div>
         <table>
           <tbody>
             {checks.map((c) => (
@@ -266,7 +276,7 @@ function Dashboard() {
                 <td>{c.label}</td>
                 <td style={{ textAlign: 'right' }}>
                   <span className="tag" style={c.ready ? { background: '#e7f7ee', color: '#1e8e4e' } : { background: '#fff4e5', color: '#b9742f' }}>
-                    {c.ready ? 'Connected' : 'Add keys in .env'}
+                    {c.ready ? 'Configured — verify before launch' : 'Setup required'}
                   </span>
                 </td>
               </tr>
@@ -281,7 +291,7 @@ function Dashboard() {
           <thead><tr><th>Customer #</th><th>Name</th><th>Tier</th><th>Points</th><th>Email</th></tr></thead>
           <tbody>
             {customers.slice(0, 8).map((c) => (
-              <tr key={c.uid}><td>{c.customerNumber}</td><td>{c.name}</td><td><span className="tag">{c.tier}</span></td><td>{c.points?.toLocaleString()}</td><td>{c.email || '—'}</td></tr>
+              <tr key={c.customerId || c.uid}><td>{c.customerNumber}</td><td>{c.name}</td><td><span className="tag">{c.tier}</span></td><td>{c.points?.toLocaleString()}</td><td>{c.email || '—'}</td></tr>
             ))}
             {!customers.length && <tr><td colSpan="5" style={{ color: '#8a93a6' }}>No customers yet — sign up in the app to create one.</td></tr>}
           </tbody>
@@ -302,6 +312,7 @@ function formatAdminDate(value) {
 function Crud({ cfg, access }) {
   const rows = useLive(cfg.subscribe)
   const stations = useLive(data.subscribeStations)
+  const liveCategories = useLive(data.subscribeCategories)
   const visibleRows = cfg.name === 'nightDeals' && !access.admin
     ? rows.filter((row) => access.stationIds?.map(String).includes(String(row.stationId)))
     : rows
@@ -310,14 +321,14 @@ function Crud({ cfg, access }) {
 
   const stationName = (id) => stations.find((station) => String(station.id) === String(id))?.name || id
   const remove = async (id) => {
-    if (!confirm('Delete this item?')) return
+    if (!confirm('Archive this item? Historical receipts and coupons will be kept.')) return
     setError('')
     try { await data.adminRemove(cfg.name, id) } catch (err) { setError(err.message || 'Delete failed') }
   }
 
   const cell = (key, row) => {
     if (key === 'img') return <span className="emoji">{row[key]}</span>
-    if (key === 'group') return groupLabel(row[key])
+    if (key === 'group') { const category = liveCategories.find(item => item.key === row[key]); return category ? `${category.emoji || ''} ${category.label}`.trim() : groupLabel(row[key]) }
     if (key === 'stationId') return stationName(row[key])
     if (key === 'dealPriceCents' || key === 'originalPriceCents') return `$${(Number(row[key] || 0) / 100).toFixed(2)}`
     if (key === 'sellUntil' || key === 'startsAt') return formatAdminDate(row[key])
@@ -348,7 +359,7 @@ function Crud({ cfg, access }) {
                 {cfg.columns.map(([key]) => <td key={key}>{cell(key, row)}</td>)}
                 <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                   <button className="btn ghost sm" onClick={() => setEditing(row)} aria-label="Edit"><Pencil size={14} /></button>{' '}
-                  {(access.admin || cfg.name !== 'nightDeals') && <button className="btn danger sm" onClick={() => remove(row.id)} aria-label="Delete"><Trash2 size={14} /></button>}
+                  {(access.admin || cfg.name !== 'nightDeals') && <button className="btn danger sm" onClick={() => remove(row.id)} aria-label="Archive"><Trash2 size={14} /></button>}
                 </td>
               </tr>
             ))}
@@ -371,6 +382,7 @@ function EditModal({ cfg, row, access, onClose }) {
           : value ?? (field.type === 'bool' ? true : field.type === 'number' ? 0 : field.type === 'select' && field.options ? field.options[0].value : '')
   })
   const [form, setForm] = useState(init)
+  const [draftId] = useState(() => row.id || crypto.randomUUID())
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const set = (key, value) => setForm((current) => ({ ...current, [key]: value }))
@@ -406,7 +418,7 @@ function EditModal({ cfg, row, access, onClose }) {
   const save = async () => {
     setBusy(true); setError('')
     try {
-      let out = { ...row }
+      let out = { ...row, id: draftId }
       cfg.fields.forEach((field) => {
         let value = form[field.key]
         if (field.type === 'number') value = Number(value)
@@ -415,7 +427,7 @@ function EditModal({ cfg, row, access, onClose }) {
         out[field.key] = value
       })
       if (cfg.idFrom && out[cfg.idFrom]) out.id = String(out[cfg.idFrom]).trim().toLowerCase().replace(/\s+/g, '-')
-      if (cfg.prepare) out = cfg.prepare(out)
+      if (cfg.prepare) out = { ...out, ...cfg.prepare(out) }
       await data.adminUpsert(cfg.name, out)
       onClose()
     } catch (err) {
@@ -477,7 +489,7 @@ function StaffAccess() {
       })
       setMessage(result.inviteLink
         ? `Access granted. Send this one-time password setup link securely to the manager: ${result.inviteLink}`
-        : 'Branch-manager access saved. The manager may need to sign out and back in for updated access.')
+        : 'Branch-manager access saved. Database permissions take effect immediately.')
       setForm((current) => ({ ...current, email: '', displayName: '' }))
     } catch (err) { setError(err.message || 'Access could not be saved.') }
     finally { setBusy(false) }
@@ -488,7 +500,7 @@ function StaffAccess() {
     setError(''); setMessage('')
     try {
       await data.adminSetStaffAccess({ email: row.email, displayName: row.displayName, stationIds: [], permissions: [], enabled: false })
-      setMessage('Access revoked. Existing sign-ins will lose access when their token refreshes; urgent revocation should also revoke refresh tokens.')
+      setMessage('Access revoked. Database requests from existing sessions are blocked immediately.')
     } catch (err) { setError(err.message || 'Access could not be revoked.') }
   }
 
@@ -501,7 +513,7 @@ function StaffAccess() {
           {message && <div className="success-note">{message}</div>}
           <div className="row2">
             <div className="field"><label>Manager name</label><input value={form.displayName} onChange={(event) => setForm((current) => ({ ...current, displayName: event.target.value }))} placeholder="Altona Night Manager" /></div>
-            <div className="field"><label>Firebase account email *</label><input type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} placeholder="manager@example.com" /></div>
+            <div className="field"><label>Confirmed Supabase account email *</label><input type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} placeholder="manager@example.com" /></div>
             <div className="field" style={{ gridColumn: '1 / 3' }}><label>Assigned station *</label><select value={form.stationId} onChange={(event) => setForm((current) => ({ ...current, stationId: event.target.value }))}>{stations.map((station) => <option key={station.id} value={station.id}>{station.name} — {station.city}</option>)}</select></div>
           </div>
           <button className="btn" onClick={save} disabled={busy || !form.email || !form.stationId}><UserPlus size={16} /> {busy ? 'Saving…' : 'Grant Tonight Only access'}</button>
@@ -533,18 +545,20 @@ function Customers() {
   const [customers, setCustomers] = useState([])
   const [q, setQ] = useState('')
   const [adjust, setAdjust] = useState(null)
-  const refresh = () => data.adminListCustomers().then(setCustomers)
-  useEffect(() => { refresh() }, [])
+  const [offset, setOffset] = useState(0), [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const refresh = () => { setLoading(true); return data.adminListCustomers({ search: q, offset }).then(setCustomers).catch(e => setError(e.message)).finally(() => setLoading(false)) }
+  useEffect(() => { const timer = setTimeout(refresh, 250); return () => clearTimeout(timer) }, [q, offset])
 
   const list = customers.filter((c) => !q || c.customerNumber?.includes(q) || c.name?.toLowerCase().includes(q.toLowerCase()) || c.email?.toLowerCase().includes(q.toLowerCase()))
 
   return (
     <div className="panel">
       <div className="phead">
-        <h3>{customers.length} customers</h3>
+        <h3>{loading ? 'Loading customers…' : `${customers.length} customers on this page`}</h3>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#f4f6fb', borderRadius: 10, padding: '8px 12px' }}>
           <Search size={16} color="#8a93a6" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search number / name / email" style={{ border: 'none', background: 'transparent', outline: 'none', width: 220 }} />
+          <input value={q} onChange={(e) => { setQ(e.target.value); setOffset(0) }} placeholder="Search number / name / email" style={{ border: 'none', background: 'transparent', outline: 'none', width: 220 }} />
         </div>
       </div>
       <table>
@@ -560,6 +574,8 @@ function Customers() {
           {!list.length && <tr><td colSpan="7" style={{ color: '#8a93a6' }}>No customers found.</td></tr>}
         </tbody>
       </table>
+      {error && <p className="panel-error">{error}</p>}
+      {DATA_MODE === 'supabase' && <div className="modal-actions"><button className="btn ghost" disabled={offset === 0 || loading} onClick={() => setOffset(value => Math.max(0, value - 100))}>Previous</button><button className="btn ghost" disabled={customers.length < 100 || loading} onClick={() => setOffset(value => value + 100)}>Next page</button></div>}
       {adjust && <AdjustModal customer={adjust} onClose={() => { setAdjust(null); refresh() }} />}
     </div>
   )
@@ -568,7 +584,15 @@ function Customers() {
 function AdjustModal({ customer, onClose }) {
   const [delta, setDelta] = useState('')
   const [note, setNote] = useState('')
-  const apply = async () => { const d = Number(delta); if (!d) return onClose(); await data.adminAdjustPoints(customer.uid, d, { store: note || 'Admin adjustment' }); onClose() }
+  const [busy, setBusy] = useState(false), [error, setError] = useState('')
+  const apply = async () => {
+    if (busy) return
+    const d = Number(delta)
+    if (!Number.isSafeInteger(d) || !d || Math.abs(d) > 1000000 || note.trim().length < 5) { setError('Enter a nonzero whole-point amount and a reason of at least 5 characters.'); return }
+    setBusy(true); setError('')
+    try { await data.adminAdjustPoints(DATA_MODE === 'local' ? customer.uid : customer.customerId, d, { store: note.trim() }); onClose() }
+    catch (e) { setError(e.message) } finally { setBusy(false) }
+  }
   return (
     <div className="scrim" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -578,7 +602,7 @@ function AdjustModal({ customer, onClose }) {
         <div className="field"><label>Note / reason</label><input value={note} onChange={(e) => setNote(e.target.value)} placeholder="In-store purchase" /></div>
         <div className="modal-actions">
           <button className="btn ghost" onClick={onClose}>Cancel</button>
-          <button className="btn" onClick={apply}>Apply</button>
+          {error && <p className="err">{error}</p>}<button className="btn" disabled={busy} onClick={apply}>{busy ? 'Applying…' : 'Apply'}</button>
         </div>
       </div>
     </div>
@@ -590,18 +614,25 @@ function Notifications() {
   const sent = useLive(data.subscribeNotifications)
   const [form, setForm] = useState({ icon: '📣', title: '', body: '' })
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
-  const send = async () => { if (!form.title) return; await data.adminBroadcast(form); setForm({ icon: '📣', title: '', body: '' }) }
+  const [busy, setBusy] = useState(false), [error, setError] = useState('')
+  const [requestId, setRequestId] = useState(() => crypto.randomUUID())
+  const send = async () => {
+    if (!form.title || busy) return
+    setBusy(true); setError('')
+    try { await data.adminBroadcast({ ...form, id: requestId }); setForm({ icon: '📣', title: '', body: '' }); setRequestId(crypto.randomUUID()) }
+    catch (e) { setError(e.message) } finally { setBusy(false) }
+  }
   return (
     <>
       <div className="panel" style={{ marginBottom: 22 }}>
-        <div className="phead"><h3>Send a notification</h3></div>
+        <div className="phead"><h3>Publish an in-app notification</h3></div>
         <div style={{ padding: 20 }}>
           <div className="row2">
             <div className="field" style={{ gridColumn: '1 / 3' }}><label>Title</label><input value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="Weekend fuel special starts today" /></div>
             <div className="field" style={{ gridColumn: '1 / 3' }}><label>Message</label><input value={form.body} onChange={(e) => set('body', e.target.value)} placeholder="Members save 6¢/L all weekend" /></div>
             <div className="field"><label>Emoji</label><input value={form.icon} onChange={(e) => set('icon', e.target.value)} /></div>
           </div>
-          <button className="btn" onClick={send}><Bell size={16} /> Broadcast to all members</button>
+          {error && <p className="err">{error}</p>}<button className="btn" disabled={busy} onClick={send}><Bell size={16} /> {busy ? 'Publishing…' : 'Publish to member inboxes'}</button>
         </div>
       </div>
       <div className="panel">
@@ -615,4 +646,37 @@ function Notifications() {
       </div>
     </>
   )
+}
+
+function Campaigns() {
+  const [rows, setRows] = useState([]), [reviews, setReviews] = useState([])
+  const [busy, setBusy] = useState(false), [error, setError] = useState('')
+  const loadReviews = () => data.adminPromotionReviews?.().then(setReviews).catch(e => setError(e.message))
+  useEffect(() => { loadReviews(); return data.subscribeCampaigns?.(setRows) }, [])
+  const change = async (row) => {
+    setBusy(true); setError('')
+    try { await data.adminSetCampaign(row.id, !row.active) } catch (e) { setError(e.message) } finally { setBusy(false) }
+  }
+  const resolve = async (row) => {
+    const reason = window.prompt('Document how this refunded promotional benefit was resolved (minimum 5 characters).')
+    if (!reason) return
+    setBusy(true); setError('')
+    try { await data.adminResolvePromotion(row.id, reason); await loadReviews() } catch (e) { setError(e.message) } finally { setBusy(false) }
+  }
+  return <>
+    {error && <p role="alert" className="panel-error">{error}</p>}
+    <div className="panel" style={{ marginBottom: 22 }}><div className="phead"><h3>Server-controlled campaigns</h3></div>
+      <p style={{ padding: 20 }}>Qualifying purchases come from signed POS events. Prize rules are versioned; customers cannot grant themselves spins or prizes.</p>
+      <table><thead><tr><th>Campaign</th><th>Version</th><th>Status</th><th></th></tr></thead><tbody>
+        {rows.map(row => <tr key={row.id}><td>{row.id === 'fuel_mission' ? 'Fuel Mission' : 'Spin & Win'}</td><td>{row.version}</td><td>{row.active ? 'Active' : 'Paused'}</td><td><button disabled={busy} className="btn ghost sm" onClick={() => change(row)}>{row.active ? 'Pause' : 'Enable'}</button></td></tr>)}
+        {!rows.length && <tr><td colSpan="4">Live campaign configuration is available in Supabase mode after the migrations are applied.</td></tr>}
+      </tbody></table>
+    </div>
+    <div className="panel"><div className="phead"><h3>Refunded prize reviews ({reviews.length})</h3><button className="btn ghost sm" onClick={loadReviews}>Refresh</button></div>
+      <table><thead><tr><th>Customer ID</th><th>Reason</th><th></th></tr></thead><tbody>
+        {reviews.map(row => <tr key={row.id}><td>{row.customer_id}</td><td>{row.reason}</td><td><button disabled={busy} className="btn ghost sm" onClick={() => resolve(row)}>Resolve</button></td></tr>)}
+        {!reviews.length && <tr><td colSpan="3">No pending reviews.</td></tr>}
+      </tbody></table>
+    </div>
+  </>
 }

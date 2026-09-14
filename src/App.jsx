@@ -38,7 +38,7 @@ const OVERLAYS = {
 }
 
 export default function App() {
-  const { authed, user, resolving, tab, overlay } = useApp()
+  const { authed, user, resolving, tab, overlay, profileError, connectionError, retryConnection, logout } = useApp()
   const [splashDone, setSplashDone] = useState(false)
 
   useEffect(() => {
@@ -51,7 +51,7 @@ export default function App() {
 
   // keep splash up until the brand timer AND auth state have both resolved;
   // also while a signed-in user's live customer doc is still loading.
-  const splash = !splashDone || resolving || (!!user && !authed)
+  const splash = !splashDone || resolving || (!!user && !user.recovery && !authed && !profileError)
 
   return (
     <div className="stage">
@@ -61,12 +61,20 @@ export default function App() {
             <motion.div key="splash" exit={{ opacity: 0 }} style={{ position: 'absolute', inset: 0, zIndex: 90 }}>
               <SplashScreen />
             </motion.div>
-          ) : !authed ? (
+          ) : profileError && user && !user.recovery ? (
+            <div role="alert" style={{ padding: '80px 24px', lineHeight: 1.6 }}>
+              <h2>We couldn't load your account</h2>
+              <p style={{ margin: '16px 0' }}>{profileError}</p>
+              <button className="btn" onClick={retryConnection}>Retry</button>
+              <button className="btn ghost" onClick={() => logout().catch(() => {})} style={{ marginTop: 12 }}>Sign out</button>
+            </div>
+          ) : !authed || user?.recovery ? (
             <motion.div key="auth" initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ position: 'absolute', inset: 0 }}>
               <AuthScreen />
             </motion.div>
           ) : (
             <motion.div key="app" initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ position: 'absolute', inset: 0 }}>
+              {connectionError && <div role="alert" style={{ position: 'absolute', top: 64, left: 8, right: 8, zIndex: 85, background: '#fff4e5', padding: 10, borderRadius: 12, fontSize: 12 }} aria-live="polite">{connectionError} <button onClick={retryConnection}>Retry</button></div>}
               {/* tab screens with crossfade */}
               <AnimatePresence mode="wait">
                 <motion.div key={tab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.22 }} style={{ position: 'absolute', inset: 0 }}>

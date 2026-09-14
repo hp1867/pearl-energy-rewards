@@ -33,9 +33,9 @@ export default function ProfileScreen() {
             <div style={{ width: 70, height: 70, borderRadius: '50%', background: 'var(--grad-gold)', display: 'grid', placeItems: 'center', fontWeight: 800, fontSize: 26, color: '#3a2c08' }}>
               {member.firstName[0]}{member.lastName[0]}
             </div>
-            <div style={{ flex: 1 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 700, fontSize: 20 }}>{member.name}</div>
-              <div style={{ fontSize: 12.5, opacity: 0.8, fontFamily: 'monospace', letterSpacing: '0.08em' }}>{member.membershipId}</div>
+              <div style={{ fontSize: 12.5, opacity: 0.8, fontFamily: 'monospace', overflowWrap: 'anywhere', letterSpacing: '0.04em' }}>{member.membershipId}</div>
               <div style={{ fontSize: 11.5, opacity: 0.7, marginTop: 2 }}>Customer #{member.customerNumber}</div>
               <span className="pill" style={{ background: 'var(--grad-gold)', color: '#3a2c08', marginTop: 8, display: 'inline-block' }}>★ {member.tier} Member</span>
             </div>

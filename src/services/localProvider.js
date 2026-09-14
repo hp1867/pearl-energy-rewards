@@ -1,6 +1,8 @@
-// Local demo database — mimics the Firebase/Firestore provider using
+// Local demo database — implements the shared provider contract using
 // localStorage so the app is fully functional before real keys are added.
 // Live updates are simulated with an in-memory pub/sub (+ cross-tab storage events).
+import { MISSION_TARGET, MISSION_WINDOW_DAYS, MISSION_PRIZES, WHEEL_PRIZES, WHEEL_QUALIFYING_CATS, WHEEL_MIN_SPEND } from '../data/loyaltyCampaigns'
+export { MISSION_TARGET, MISSION_PRIZES, WHEEL_PRIZES, WHEEL_QUALIFYING_CATS, WHEEL_MIN_SPEND } from '../data/loyaltyCampaigns'
 import { buildNewCustomer, buildQrData, tierForPoints } from './ids'
 import { offers as seedOffers, rewards as seedRewards, fuelTypes as seedFuel, menuItems as seedMenu, menuGroups, notifications as seedNotifs, stations as seedStations } from '../data/mockData'
 import { asDate, buildDemoNightDeals, NIGHT_DEAL_PERMISSION, normaliseNightDeal } from './nightDeals'
@@ -102,19 +104,6 @@ function syncDerived(c) {
 
 // 2-week Fuel Mission: fill up MISSION_TARGET times within MISSION_WINDOW_DAYS
 // of the first fill-up → a MYSTERY prize, drawn at random on completion.
-export const MISSION_TARGET = 4
-const MISSION_WINDOW_DAYS = 14
-
-// The prize pool shown in the "how it works" popup. Weights set rarity —
-// which prize the customer actually gets stays secret until they finish.
-export const MISSION_PRIZES = [
-  { type: 'points', value: 100, label: '100 Bonus Points', img: '⭐', weight: 40 },
-  { type: 'points', value: 200, label: '200 Bonus Points', img: '⚡', weight: 25 },
-  { type: 'points', value: 500, label: '500 Bonus Points', img: '💎', weight: 10 },
-  { type: 'coupon', label: 'Free Regular Coffee', img: '☕', color: '#7a4a2b', weight: 20 },
-  { type: 'coupon', label: 'Free Snack', img: '🍫', color: '#8e44ad', weight: 5 },
-]
-
 function drawMissionPrize() {
   const total = MISSION_PRIZES.reduce((s, p) => s + p.weight, 0)
   let roll = Math.random() * total
@@ -125,16 +114,6 @@ function drawMissionPrize() {
 // Spin the Wheel: a spin is earned by buying from a qualifying category
 // (lollies / snacks / biscuits / bakery) or any shop of $50+. Prizes are
 // weighted; coupon prizes drop into My Coupons with the standard 7-day expiry.
-export const WHEEL_PRIZES = [
-  { id: 'disc5', label: '5% Off', img: '🏷️', color: '#0057b8', weight: 25, type: 'coupon', title: '5% Off Next Purchase' },
-  { id: 'drink', label: 'Free Drink', img: '🥤', color: '#16a085', weight: 20, type: 'coupon', title: 'Free Drink (600ml)' },
-  { id: 'double', label: 'Double Points', img: '⚡', color: '#f39c12', weight: 20, type: 'double' },
-  { id: 'gift', label: 'Mystery Gift', img: '🎁', color: '#8e44ad', weight: 10, type: 'coupon', title: 'Mystery Gift — reveal in store' },
-  { id: 'entries', label: '5 Draw Entries', img: '🎟️', color: '#c0392b', weight: 25, type: 'entries', value: 5 },
-]
-export const WHEEL_QUALIFYING_CATS = ['lollies', 'snacks', 'biscuits', 'bakery']
-export const WHEEL_MIN_SPEND = 50
-
 function drawWheelPrize() {
   const total = WHEEL_PRIZES.reduce((s, p) => s + p.weight, 0)
   let roll = Math.random() * total

@@ -11,12 +11,12 @@ import { useApp } from '../context/AppContext'
 import MembershipCard from '../components/MembershipCard'
 import MapView from '../components/MapView'
 import { integrations } from '../config/integrations'
-import { enablePush } from '../firebase/messaging'
+import { enablePush } from '../services/push'
 import { addToWallet } from '../services/wallet'
 import { data } from '../services/data'
 import { amenityFilters, transactions, stationFuelRows, tiers } from '../data/mockData'
 import { tierTheme } from '../theme/tiers'
-import { WHEEL_PRIZES } from '../services/localProvider'
+import { WHEEL_PRIZES } from '../data/loyaltyCampaigns'
 import { PearlMark } from '../components/Brand'
 
 const AMENITY_ICON = { Coffee, 'Car Wash': Car, ATM: Banknote, 'Hot Food': UtensilsCrossed, 'EV Charging': Zap }
@@ -38,16 +38,17 @@ function Shell({ title, children, dark = false }) {
 
 /* ---------------- Offer / menu item details ---------------- */
 export function ItemDetails() {
-  const { overlayArg, setOverlay, setOverlayArg } = useApp()
+  const { overlayArg, setOverlay, setOverlayArg, offers, menu, mode } = useApp()
   const payload = overlayArg && typeof overlayArg === 'object' ? overlayArg : {}
-  const item = payload.item || {}
   const kind = payload.kind || 'menu'
+  const liveItem = (kind === 'offer' ? offers : menu).find(row => row.id === payload.item?.id)
+  const item = liveItem || payload.item || {}
   const isOffer = kind === 'offer' || kind === 'hot-deal'
   const title = item.title || item.name || 'Item details'
   const description = item.sub || item.desc || (isOffer ? 'A Pearl member offer available in store.' : 'Available from participating Pearl Energy stores.')
   const price = item.price || item.now || 'See in store'
   const oldPrice = item.was
-  const available = item.avail !== false
+  const available = item.avail !== false && item.active !== false && (mode === 'local' || !!liveItem)
   const accent = item.accent || (kind === 'hot-deal' ? '#c44725' : '#0057b8')
   const tags = [...new Set([item.tag, ...(item.tags || [])].filter(Boolean))]
 
@@ -85,7 +86,7 @@ export function ItemDetails() {
               {oldPrice && <span className="item-detail-old-price">{oldPrice}</span>}
             </div>
             <span className={`availability-pill ${available ? 'is-available' : 'is-unavailable'}`}>
-              <span aria-hidden>●</span> {available ? 'Available' : 'Sold out'}
+              <span aria-hidden>●</span> {available ? 'Available' : 'Unavailable'}
             </span>
           </div>
 
@@ -93,7 +94,7 @@ export function ItemDetails() {
 
           <div className="item-detail-info-list">
             {item.expiry && <div><Clock size={18} /><span><strong>Offer period</strong>Expires {item.expiry}</span></div>}
-            <div><Tag size={18} /><span><strong>{isOffer ? 'Easy redemption' : 'Earn rewards'}</strong>{isOffer ? 'Scan your Pearl card and the eligible offer applies at the POS.' : 'Scan your Pearl card at checkout to earn eligible points.'}</span></div>
+            <div><Tag size={18} /><span><strong>{isOffer ? 'Easy redemption' : 'Earn rewards'}</strong>{isOffer ? 'Show your Pearl card and confirm this offer at the register.' : 'Scan your Pearl card at checkout to earn eligible points.'}</span></div>
             <div><Info size={18} /><span><strong>In-store availability</strong>{available ? 'Available at participating Pearl Energy stores while stocks last.' : 'This item is currently unavailable; another station may still have stock.'}</span></div>
           </div>
 
@@ -110,7 +111,8 @@ export function ItemDetails() {
 
 /* ---------------- Membership card / Wallet ---------------- */
 export function WalletCard() {
-  const { member, notify } = useApp()
+  const { member, notify, pendingRewards } = useApp()
+  const activeCoupons = pendingRewards.filter(row => row.status === 'active' && new Date(row.expiresAt) > new Date()).length
   const wallet = async (p) => { const r = await addToWallet(p, member); notify(r.message) }
   return (
     <Shell title="Membership Card">
@@ -128,7 +130,7 @@ export function WalletCard() {
         <div style={{ background: '#fff', borderRadius: 12, padding: 16, boxShadow: 'var(--shadow-sm)', border: '1px solid rgba(226,226,229,0.5)' }}>
           <div className="label" style={{ marginBottom: 4 }}>Available Rewards</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--primary)' }}>3</span>
+            <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--primary)' }}>{activeCoupons}</span>
             <Tag size={18} color="var(--secondary-container)" fill="var(--secondary-container)" />
           </div>
         </div>
@@ -152,10 +154,10 @@ export function FuelPrices() {
     <Shell title="Live Fuel Prices">
       <div style={{ padding: '8px 20px 0' }}>
         <div style={{ background: 'var(--grad-blue-deep)', borderRadius: 20, padding: 20, color: '#fff', marginBottom: 18, boxShadow: 'var(--shadow-blue)' }}>
-          <div style={{ fontSize: 13, opacity: 0.85 }}>📍 Pearl Energy Penrith · cheapest near you</div>
+          <div style={{ fontSize: 13, opacity: 0.85 }}>Published fuel prices</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 6 }}>
-            <span style={{ fontSize: 40, fontWeight: 700, letterSpacing: '-0.02em' }}>185.9</span>
-            <span style={{ opacity: 0.85 }}>¢/L ULP 91</span>
+            <span style={{ fontSize: 40, fontWeight: 700, letterSpacing: '-0.02em' }}>{fuelPrices[0] ? (fuelPrices[0].price * 100).toFixed(1) : '—'}</span>
+            <span style={{ opacity: 0.85 }}>¢/L {fuelPrices[0]?.code || ''}</span>
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -167,7 +169,7 @@ export function FuelPrices() {
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 700, fontSize: 15 }}>{f.code}</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, color: down ? '#1e8e4e' : 'var(--error)', marginTop: 2 }}>
-                    {down ? <TrendingDown size={14} /> : <TrendingUp size={14} />} {down ? '' : '+'}{f.trend.toFixed(2)} today
+                    {down ? <TrendingDown size={14} /> : <TrendingUp size={14} />} {down ? '' : '+'}{Number(f.trend || 0).toFixed(2)} today
                   </div>
                 </div>
                 <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--primary)' }}>${f.price.toFixed(3)}</div>
@@ -329,7 +331,7 @@ export function ScanModal() {
         <p style={{ opacity: 0.7, marginTop: 6, fontSize: 14 }}>Show this at the Pearl Energy counter</p>
       </div>
       <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={{ background: '#fff', borderRadius: 24, padding: 26, position: 'relative' }}>
-        <QRCodeCanvas value={`PEARL|${member.membershipId}|${member.points}`} size={210} level="H" />
+        <QRCodeCanvas value={member.qrData || `PEARL|1|${member.membershipId}`} size={210} level="H" />
         <motion.div animate={{ y: [0, 210, 0] }} transition={{ repeat: Infinity, duration: 2.4, ease: 'easeInOut' }}
           style={{ position: 'absolute', left: 26, right: 26, height: 3, background: 'linear-gradient(90deg,transparent,#4da3ff,transparent)', borderRadius: 999, boxShadow: '0 0 12px var(--blue-glow)' }} />
       </motion.div>
@@ -340,11 +342,31 @@ export function ScanModal() {
 
 /* ---------------- Digital receipts ---------------- */
 export function Receipts() {
-  const { notify, member } = useApp()
-  const list = member?.transactions?.length ? member.transactions : transactions
+  const { notify, member, mode } = useApp()
+  const list = mode === 'local' && !member?.transactions?.length ? transactions : member?.transactions || []
+  const receiptText = async transaction => {
+    const receipt = data.getReceipt ? await data.getReceipt(transaction.id) : transaction
+    return JSON.stringify({ merchant: 'Pearl Energy', ...receipt }, null, 2)
+  }
+  const saveReceipt = async transaction => {
+    try {
+      const url = URL.createObjectURL(new Blob([await receiptText(transaction)], { type: 'application/json' }))
+      const link = document.createElement('a')
+      link.href = url; link.download = `pearl-receipt-${transaction.id}.json`; link.click()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+    } catch (error) { notify(error.message || 'Receipt could not be loaded') }
+  }
+  const shareReceipt = async transaction => {
+    try {
+      const text = await receiptText(transaction)
+      if (navigator.share) await navigator.share({ title: 'Pearl Energy receipt', text })
+      else { await navigator.clipboard.writeText(text); notify('Receipt copied to clipboard') }
+    } catch (error) { if (error.name !== 'AbortError') notify('Could not share the receipt. Use Save instead.') }
+  }
   return (
     <Shell title="Digital Receipts">
       <div style={{ padding: '8px 20px 0', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {!list.length && <p style={{ color: 'var(--muted)', padding: 20 }}>Your receipts will appear here after purchases at a connected register.</p>}
         {list.map((t) => (
           <div key={t.id} style={{ background: '#fff', borderRadius: 16, padding: 16, boxShadow: 'var(--shadow-sm)', border: '1px solid rgba(226,226,229,0.5)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -354,12 +376,12 @@ export function Receipts() {
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: 17, fontWeight: 700 }}>${t.amount.toFixed(2)}</div>
-                <span className="pill" style={{ background: '#e7f7ee', color: '#1e8e4e' }}>+{t.points} pts</span>
+                <span className="pill" style={{ background: '#e7f7ee', color: '#1e8e4e' }}>{t.points > 0 ? '+' : ''}{t.points} pts</span>
               </div>
             </div>
             <div style={{ display: 'flex', gap: 10, marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--line)' }}>
-              <button onClick={() => notify('Receipt PDF downloaded')} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontSize: 13, fontWeight: 700, color: 'var(--primary)', padding: 8 }}><Download size={16} /> PDF</button>
-              <button onClick={() => notify('Sharing receipt…')} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontSize: 13, fontWeight: 700, color: 'var(--primary)', padding: 8, borderLeft: '1px solid var(--line)' }}><Share2 size={16} /> Share</button>
+              <button onClick={() => saveReceipt(t)} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontSize: 13, fontWeight: 700, color: 'var(--primary)', padding: 8 }}><Download size={16} /> Save</button>
+              <button onClick={() => shareReceipt(t)} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontSize: 13, fontWeight: 700, color: 'var(--primary)', padding: 8, borderLeft: '1px solid var(--line)' }}><Share2 size={16} /> Share</button>
             </div>
           </div>
         ))}
@@ -414,7 +436,7 @@ export function CustomerLookup() {
               ))}
             </div>
             <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16, padding: 14, background: '#fff', borderRadius: 12, border: '1px solid var(--line)' }}>
-              <QRCodeCanvas value={state.customer.qrData || `PEARL|${state.customer.membershipId}|${state.customer.customerNumber}`} size={120} level="M" />
+              <QRCodeCanvas value={state.customer.qrData || `PEARL|1|${state.customer.membershipId}`} size={120} level="M" />
             </div>
             <div style={{ fontSize: 12, color: 'var(--muted)', textAlign: 'center', marginTop: 10 }}>{state.customer.email} · {state.customer.mobile || 'no mobile on file'}</div>
           </motion.div>
@@ -451,7 +473,7 @@ export function Notifications() {
 const COUPON_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000 // coupons are valid 7 days from purchase
 
 export function MyCoupons() {
-  const { pendingRewards, useReward, removeReward, notify, member, setPendingRewards } = useApp()
+  const { pendingRewards, useReward, removeReward, notify, member, setPendingRewards, mode, setOverlay } = useApp()
   const [filter, setFilter] = useState('all') // all | active | redeemed | expired
 
   // On mount, reload pendingRewards from localStorage as a safety net
@@ -460,6 +482,7 @@ export function MyCoupons() {
     data.getPendingCoupons(member.uid).then(r => {
       const persisted = r || []
       setPendingRewards(prev => {
+        if (mode !== 'local') return persisted
         if (persisted.length === 0) return prev
         const prevIds = new Set(prev.map(p => p.id))
         const newPersisted = persisted.filter(p => !prevIds.has(p.id))
@@ -474,6 +497,7 @@ export function MyCoupons() {
   const expiryOf = (r) => r.expiresAt || new Date(new Date(r.redeemedAt).getTime() + COUPON_LIFETIME_MS).toISOString()
   const statusOf = (r) => {
     if (r.status === 'redeemed') return 'redeemed'
+    if (r.status === 'revoked') return 'expired'
     if (new Date(expiryOf(r)) < new Date()) return 'expired'
     return 'active'
   }
@@ -545,11 +569,11 @@ export function MyCoupons() {
                       </div>
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         {canUse && (
-                          <button onClick={() => useReward(reward.id)} className="btn" style={{ width: 'auto', padding: '12px 20px', background: 'linear-gradient(135deg, #1e8e4e, #27ae60)' }}>
-                            <span style={{ fontSize: 16 }}>✅</span> Use at POS
+                          <button onClick={() => mode === 'local' ? useReward(reward.id) : setOverlay('wallet')} className="btn" style={{ width: 'auto', padding: '12px 20px', background: 'linear-gradient(135deg, #1e8e4e, #27ae60)' }}>
+                            <span style={{ fontSize: 16 }}>✅</span> {mode === 'local' ? 'Simulate POS use' : 'Show my member card'}
                           </button>
                         )}
-                        {(status === 'redeemed' || isExpired) && (
+                        {mode === 'local' && (status === 'redeemed' || isExpired) && (
                           <button onClick={() => removeReward(reward.id)} className="btn ghost" style={{ width: 'auto', padding: '12px 20px' }}>
                             <span style={{ fontSize: 16 }}>🗑️</span> Remove
                           </button>
@@ -580,13 +604,13 @@ export function EditProfile() {
     mobile: member.mobile || '', dob: member.dob || '',
   })
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
   const bind = (k) => ({ value: f[k], onChange: (e) => setF({ ...f, [k]: e.target.value }) })
   const save = async () => {
     if (!f.firstName.trim() || !f.lastName.trim()) return
-    setSaving(true)
-    await updateProfile({ ...f, firstName: f.firstName.trim(), lastName: f.lastName.trim() })
-    setSaving(false)
-    setOverlay(null)
+    setSaving(true); setSaveError('')
+    try { await updateProfile({ ...f, firstName: f.firstName.trim(), lastName: f.lastName.trim() }); setOverlay(null) }
+    catch (error) { setSaveError(error.message) } finally { setSaving(false) }
   }
 
   const input = { width: '100%', padding: '13px 14px', borderRadius: 13, border: '1px solid var(--line)', background: '#fff', fontSize: 14.5, color: 'var(--ink)' }
@@ -608,6 +632,7 @@ export function EditProfile() {
         <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>
           Membership ID {member.membershipId} and customer number #{member.customerNumber} are permanent and stay attached to your account.
         </div>
+        {saveError && <p role="alert" style={{ color: 'var(--error)' }}>{saveError}</p>}
         <button className="btn" onClick={save} disabled={saving || !f.firstName.trim() || !f.lastName.trim()}
           style={{ opacity: saving || !f.firstName.trim() || !f.lastName.trim() ? 0.6 : 1 }}>
           {saving ? 'Saving…' : 'Save changes'}
@@ -761,12 +786,14 @@ export function SpinWheel() {
   const [rotation, setRotation] = useState(0)
   const [spinning, setSpinning] = useState(false)
   const [won, setWon] = useState(null)
-  const spins = member.wheelSpins || 0
+  const spins = member.promotionHold || member.wheelActive === false ? 0 : member.wheelSpins || 0
 
   const spin = async () => {
     if (spinning || !data.spinWheel) return
-    const res = await data.spinWheel(member.uid)
-    if (!res.ok) { notify(res.message); return }
+    setSpinning(true)
+    let res
+    try { res = await data.spinWheel(member.uid) } catch (error) { setSpinning(false); notify(error.message); return }
+    if (!res.ok) { setSpinning(false); notify(res.message); return }
     const idx = Math.max(0, WHEEL_PRIZES.findIndex((p) => p.id === res.prize.id))
     // land the winning segment's centre under the top pointer, after 5 full turns
     setWon(null)
@@ -794,7 +821,7 @@ export function SpinWheel() {
     <Shell title="Spin & Win">
       <div style={{ padding: '8px 20px 0', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <p style={{ fontSize: 13, color: 'var(--muted)', textAlign: 'center', marginBottom: 6 }}>
-          {spins > 0 ? `You have ${spins} spin${spins === 1 ? '' : 's'} ready 🎉` : 'No spins yet — earn one below'}
+          {member.wheelActive === false ? 'Spin & Win is currently paused' : spins > 0 ? `You have ${spins} spin${spins === 1 ? '' : 's'} ready 🎉` : member.promotionHold ? 'A refunded promotion is awaiting staff review' : 'No spins yet — earn one below'}
         </p>
 
         {/* status chips */}
@@ -836,9 +863,9 @@ export function SpinWheel() {
             <div style={{ fontSize: 40 }}>{won.img}</div>
             <div style={{ fontWeight: 800, fontSize: 17, marginTop: 6 }}>You won: {won.title || won.label}!</div>
             <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 4 }}>
-              {won.type === 'coupon' ? 'Saved to My Coupons — active for 7 days, auto-applies at POS.'
+              {won.type === 'coupon' ? 'Saved to My Coupons for 7 days. Show your membership card at the register.'
                 : won.type === 'double' ? 'Your next purchase automatically earns double points.'
-                : 'Winners are drawn at the end of each month. Good luck!'}
+                : 'Entries saved. Draw rules and winners are managed by Pearl Energy.'}
             </div>
           </motion.div>
         )}

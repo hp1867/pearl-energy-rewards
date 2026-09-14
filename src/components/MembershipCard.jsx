@@ -37,18 +37,18 @@ export default function MembershipCard({ member }) {
 
           {/* user info */}
           <div style={{ position: 'relative', zIndex: 1 }}>
-            <div style={{ fontSize: 20, fontWeight: 600, color: t.text }}>{member.firstName} {member.lastName[0]}.</div>
-            <div style={{ fontFamily: 'monospace', fontSize: 16, letterSpacing: '0.18em', color: t.sub, marginTop: 4 }}>{member.membershipId}</div>
+            <div style={{ fontSize: 20, fontWeight: 600, color: t.text }}>{member.firstName} {member.lastName?.[0] ? `${member.lastName[0]}.` : ''}</div>
+            <div style={{ fontFamily: 'monospace', fontSize: 12, overflowWrap: 'anywhere', letterSpacing: '0.06em', color: t.sub, marginTop: 4 }}>{member.membershipId}</div>
           </div>
 
           {/* codes panel (always light for scannability) */}
           <div style={{ position: 'relative', zIndex: 1, background: 'rgba(255,255,255,0.92)', border: '1px solid rgba(255,255,255,0.7)', borderRadius: 14, padding: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
             <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
-              <Barcode value={member.membershipId.replace(/-/g, '')} height={56} width={1.9} displayValue={false} margin={0} background="transparent" />
+              <Barcode value={String(member.customerNumber)} height={56} width={1.9} displayValue={false} margin={0} background="transparent" />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 20, width: '100%', justifyContent: 'center' }}>
               <div style={{ background: '#fff', padding: 5, borderRadius: 10, border: '1px solid var(--surface-variant)', boxShadow: 'var(--shadow-sm)' }}>
-                <QRCodeCanvas value={`PEARL|${member.membershipId}|${member.points}`} size={72} level="M" />
+                <QRCodeCanvas value={member.qrData || `PEARL|1|${member.membershipId}`} size={72} level="M" />
               </div>
               <div>
                 <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--muted)' }}>Scan at pump</div>
