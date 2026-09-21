@@ -89,7 +89,7 @@ async function currentCustomer() {
   let consentNotice = onboarding.consentWarning ? 'Your membership is active, but the terms acknowledgement could not be saved. Review the current documents in Account & Privacy.' : undefined
   if (consent) {
     // Policy changes/network failures must not undo a verified member's login.
-    const result = await requireSupabase().rpc('complete_registration', { p_versions: consent }).catch(() => ({ error: true }))
+    const result = await Promise.resolve(requireSupabase().rpc('complete_registration', { p_versions: consent })).catch(() => ({ error: true }))
     if (result.error) consentNotice = 'Your sign-in succeeded, but the terms acknowledgement could not be saved. You can review the current documents in Account & Privacy.'
   }
   await rpc('ensure_profile')
