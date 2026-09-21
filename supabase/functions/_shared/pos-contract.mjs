@@ -35,6 +35,14 @@ export function normalizeMembership(value) {
 export function canonicalizePosEvent(input, provider) {
   rejectSensitive(input)
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new PosError('Expected a JSON object')
+  const benefitValidationErrors = []
+  const optionalBenefit = (parse, fallback) => {
+    try { return parse() } catch (error) {
+      if (!(error instanceof PosError)) throw error
+      benefitValidationErrors.push(error.message)
+      return fallback
+    }
+  }
   const eventType = string(input.eventType, 'eventType', 10).toLowerCase()
   if (!['sale','refund','void'].includes(eventType)) throw new PosError('Unsupported event type')
   if (input.contractVersion != null && input.contractVersion !== 1) throw new PosError('Unsupported contract version')
@@ -56,7 +64,9 @@ export function canonicalizePosEvent(input, provider) {
     description: string(item.description, 'description', 240), category: string(item.category, 'category', 80).toLowerCase(),
     quantityMilli: integer(item.quantityMilli ?? 1000, 'quantityMilli', 1_000_000_000, 1),
     unitPriceMicros: integer(item.unitPriceMicros ?? 0, 'unitPriceMicros', 10_000_000_000),
-    totalCents: integer(item.totalCents, 'line total'), eligibleForPoints: item.eligibleForPoints !== false,
+    totalCents: integer(item.totalCents, 'line total'),
+    ...(item.grossTotalCents == null ? {} : optionalBenefit(() => ({ grossTotalCents: integer(item.grossTotalCents, 'gross line total') }), {})),
+    eligibleForPoints: item.eligibleForPoints !== false,
     fuel: item.fuel ? { gradeCode: string(item.fuel.gradeCode, 'fuel grade', 32), litresMilli: integer(item.fuel.litresMilli, 'litresMilli', 1_000_000_000) } : null,
   }})
   if (new Set(items.map(x => x.lineId)).size !== items.length) throw new PosError('Duplicate receipt line ID')
@@ -70,16 +80,40 @@ export function canonicalizePosEvent(input, provider) {
     return { method, amountCents: integer(x.amountCents, 'payment amount') }
   })
   if (payments.length && payments.reduce((s, x) => s + x.amountCents, 0) !== totalCents) throw new PosError('Payment totals do not match')
-  if (!Array.isArray(input.couponIds ?? []) || (input.couponIds?.length || 0) > 20) throw new PosError('Invalid coupons')
-  const couponIds = (input.couponIds || []).map(x => { if (!uuid(x)) throw new PosError('Invalid coupon ID'); return x })
-  if (new Set(couponIds).size !== couponIds.length) throw new PosError('Duplicate coupon ID')
+  // Invalid optional offer evidence must not discard a valid paid receipt.
+  // Retain only well-formed coupon identifiers, never raw arbitrary fields.
+  const knownCouponIds = [...new Set([
+    ...(Array.isArray(input.couponIds) ? input.couponIds.slice(0, 20) : []),
+    ...(Array.isArray(input.couponRedemptions) ? input.couponRedemptions.slice(0, 20).map(x => x?.couponId) : []),
+  ].filter(x => typeof x === 'string' && uuid(x)).map(x => x.toLowerCase()))].slice(0, 20)
+  const couponIds = optionalBenefit(() => {
+    if (!Array.isArray(input.couponIds ?? []) || (input.couponIds?.length || 0) > 20) throw new PosError('Invalid coupons')
+    const ids = (input.couponIds || []).map(x => { if (typeof x !== 'string' || !uuid(x)) throw new PosError('Invalid coupon ID'); return x.toLowerCase() })
+    if (new Set(ids).size !== ids.length) throw new PosError('Duplicate coupon ID')
+    return ids
+  }, knownCouponIds)
+  const couponRedemptions = optionalBenefit(() => {
+  if (!Array.isArray(input.couponRedemptions ?? []) || (input.couponRedemptions?.length || 0) > 20) throw new PosError('Invalid coupon claims')
+  const claims = (input.couponRedemptions || []).map(x => {
+    object(x, 'coupon claim')
+    if (!uuid(x.couponId)) throw new PosError('Invalid coupon ID')
+    return { couponId: x.couponId.toLowerCase(), lineId: string(x.lineId, 'coupon lineId', 80), quantityMilli: integer(x.quantityMilli, 'coupon quantity', 1000000, 1), discountCents: integer(x.discountCents, 'coupon discount', 10000000, 1) }
+  })
+  if (new Set(claims.map(x => x.couponId)).size !== claims.length) throw new PosError('Duplicate coupon claim')
+  if (new Set([...couponIds, ...claims.map(x => x.couponId)]).size > 20) throw new PosError('Too many coupons')
+  return claims
+  }, [])
+  for (const id of knownCouponIds) if (!couponIds.includes(id) && couponIds.length < 20) couponIds.push(id)
+  const nightDealSales = optionalBenefit(() => {
   if (!Array.isArray(input.nightDealSales ?? []) || (input.nightDealSales?.length || 0) > 50) throw new PosError('Invalid night-deal items')
-  const nightDealSales = (input.nightDealSales || []).map(x => {
+  const deals = (input.nightDealSales || []).map(x => {
     object(x, 'night-deal item')
     if (!uuid(x.dealId)) throw new PosError('Invalid night-deal ID')
-    return { dealId: x.dealId, quantity: integer(x.quantity, 'deal quantity', 100000, 1) }
+    return { dealId: x.dealId.toLowerCase(), quantity: integer(x.quantity, 'deal quantity', 100000, 1), ...(x.lineId == null ? {} : { lineId: string(x.lineId, 'deal lineId', 80) }) }
   })
-  if (new Set(nightDealSales.map(x => x.dealId)).size !== nightDealSales.length) throw new PosError('Duplicate night-deal ID')
+  if (new Set(deals.map(x => x.dealId)).size !== deals.length) throw new PosError('Duplicate night-deal ID')
+  return deals
+  }, [])
   const taxCents = integer(input.taxCents ?? 0, 'taxCents')
   if (taxCents > totalCents) throw new PosError('Tax cannot exceed the receipt total')
   return {
@@ -91,6 +125,8 @@ export function canonicalizePosEvent(input, provider) {
     storeId: string(input.storeId, 'storeId', 100), terminalId: string(input.terminalId, 'terminalId', 100), receiptNumber: string(input.receiptNumber, 'receiptNumber', 100),
     currency: 'AUD', subtotalCents: integer(input.subtotalCents, 'subtotalCents'), taxCents, totalCents,
     membershipCode: normalizeMembership(input.membershipCode), items, payments, couponIds, nightDealSales,
+    ...(couponRedemptions.length ? { couponRedemptions } : {}),
+    ...(benefitValidationErrors.length ? { benefitValidationErrors: [...new Set(benefitValidationErrors)].slice(0, 10) } : {}),
   }
 }
 const encoder = new TextEncoder()

@@ -19,10 +19,21 @@ test('payment credentials and nested card data never enter the database', () => 
   assert.throws(() => canonicalizePosEvent({ ...event(),payments:[{ method:'card',amountCents:1000,cvv:'TEST' }] },'test'), /Card credentials/)
 })
 test('malformed nested values produce a validation error, not a server exception', () => {
-  for (const changed of [{items:[null]}, {payments:[null]}, {nightDealSales:[null]}, {items:[{...event().items[0], fuel:[]}]}, {items:[{...event().items[0], eligibleForPoints:'false'}]}]) {
+  for (const changed of [{items:[null]}, {payments:[null]}, {items:[{...event().items[0], fuel:[]}]}, {items:[{...event().items[0], eligibleForPoints:'false'}]}]) {
     assert.throws(() => canonicalizePosEvent({...event(),...changed}, 'test'), error => error.status === 400)
   }
   assert.throws(() => canonicalizePosEvent({...event(),taxCents:1001}, 'test'), /Tax cannot exceed/)
+})
+
+test('malformed optional offers retain the verified financial receipt with sanitized exceptions', () => {
+  const id = '11111111-1111-1111-1111-111111111111'
+  const result = canonicalizePosEvent({ ...event(), couponIds: [id], couponRedemptions: [null], nightDealSales: [null], items: [{ ...event().items[0], grossTotalCents: 'bad' }] }, 'test')
+  assert.equal(result.totalCents, 1000)
+  assert.deepEqual(result.couponIds, [id])
+  assert.deepEqual(result.nightDealSales, [])
+  assert.ok(result.benefitValidationErrors.length >= 3)
+  assert.equal(result.couponRedemptions, undefined)
+  assert.throws(() => canonicalizePosEvent({ ...event(), couponRedemptions: [{ cardNumber: 'TEST' }] }, 'test'), /Card credentials/)
 })
 test('semantic hashes tolerate a new delivery ID but reject changed business input', async () => {
   const a=canonicalizePosEvent(event(),'test'),b={ ...a,eventId:'retry-2' }

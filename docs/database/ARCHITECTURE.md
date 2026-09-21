@@ -1,78 +1,89 @@
-# Pearl Energy loyalty architecture — Supabase
+# Pearl Energy database architecture
 
-The active implementation is PostgreSQL + Supabase Auth, with React consumer and admin apps sharing a provider boundary. SQL migrations are in `supabase/migrations`; operational setup is in [SUPABASE.md](SUPABASE.md). The older Firebase implementation is retained under `legacy/` and in Git for reference, not used by live mode.
+The active backend is PostgreSQL and Supabase Auth in the owner-confirmed Sydney project `zaooprrcqphzocigtrxg`. Consumer and admin apps share the Supabase provider. Firebase code is retained for reference, not used in live mode. Schema changes use tested migrations: a database should evolve safely, not be frozen forever. This implementation is not a guarantee against all failures.
 
-This is a tested implementation baseline, not a guarantee against all failures. Hosted authentication, concurrent load, the real POS adapter, restore drills and operational controls must pass before launch. Database designs can evolve safely through versioned migrations; freezing a schema forever would make maintenance harder, not safer.
-
-## Trust boundaries and data flow
+## Identity and permissions
 
 ```text
-Customer app ── Supabase Auth ── RLS-protected reads / narrow customer RPCs
-Admin app ───── Supabase Auth ── live staff permissions / audited admin RPCs
-POS terminal ── signed server adapter ── pos-api ── service-only database RPC
-                                                  │
-                             one PostgreSQL transaction
-                  receipt + lines + ledger + balance + coupon/stock
-                              + campaigns + outbox + audit
-                                                  │
-                           Realtime invalidation + bounded app refresh
+Email/password or enabled Google sign-in
+  -> Supabase authentication
+  -> confirmed email + SMS-verified, unique phone
+  -> accept published terms/privacy versions
+  -> active membership + stable customer UUID + loyalty account
+
+Admin sign-in -> live staff access check -> main-admin or assigned-station tools
 ```
 
-No customer browser can write receipts, award points, consume coupons, set its role, or modify balances directly. Even the admin browser uses validated RPCs rather than a service key. POS secrets remain on trusted servers, never in a `VITE_` environment variable.
+One email and one verified phone identify a membership, not just a unique email/phone pair. Supabase Auth enforces credential uniqueness, with a second unique normalized-phone index in the domain database. Australian 04... and +614... normalize to the same number. Editable metadata is never proof of phone ownership or staff authority. Phone changes require an authenticated SMS challenge.
+
+Authentication and membership activation are distinct. Without an SMS provider, a customer may authenticate but cannot activate loyalty membership. There is no fake verification, automatic first-user-admin or silent demo fallback.
+
+Immutable `policy_versions` stores business-approved text. `consent_events` records exact terms/privacy versions and optional marketing acceptance/withdrawal. Marketing is off by default. Self-service closure requires the current disclosure and typing CLOSE; it disables loyalty access but preserves history. No account merging, point transfers or duplicate-account support workflow is provided. Closure is not immediate erasure; retention/deletion procedures need a separate approved policy.
+
+Main-admin recovery can request a reset email only to the account's existing verified email. It is rate-limited, audited and deduplicated. Admins cannot choose another destination, see reset links, set passwords or mark phones verified. A dedicated recovery page keeps support-initiated links separate from the admin's browser session. Replacing an email with an unverified caller-supplied address is not a recovery shortcut.
+
+## Purchase flow
+
+```text
+Payment completed at POS -> vendor's durable receipt queue
+  -> HMAC-authenticated gateway + financial validation
+  -> COMMIT 1: immutable inbox + delivery deduplication
+  -> COMMIT 2: receipt/lines + normal points/ledger/balance + audit/outbox
+               + separately guarded promotion/coupon/stock processing
+       valid benefit -> consume once, using historical purchase-time rules
+       offer exception -> keep receipt and normal points; auto-log exception
+       transient benefit failure -> keep core receipt; retry remaining work
+  -> app refresh/Realtime -> current balance and purchase history
+```
+
+The Edge Function commits intake before calling the processor. Receipt and ordinary points are atomic. Guarded subtransactions prevent optional offer validation errors from discarding a paid receipt. Full ordinary points are based on eligible actual spend; an unverified extra promotional bonus is not granted automatically. A claimed active coupon belonging to the purchaser is closed if validation fails, avoiding reuse without falsely recording a validated redemption. Another person's coupon is untouched.
+
+Invalid financial totals, identity or refund references are not automatically rewarded. Rejected pre-intake messages remain the vendor adapter's responsibility; accepted but invalid financial input stays visible for correction. Automatic offer exceptions and financial errors are different cases.
+
+Delivery IDs and business IDs are independently deduplicated. Identical retries return the original receipt; changed content under the same ID is rejected. Receipt/ledger evidence is append-only. The balance update locks the account and commits with its ledger entry. Money uses integer AUD cents, unit prices millionths, fuel millilitres, quantities thousandths and points integers. No payment credentials are stored.
+
+Refunds use original ownership, eligible lines and historical rate. Cumulative refunds cannot exceed the original amounts/quantities. Refunds may create points debt rather than enable purchase/redeem/refund abuse.
+
+A distinct existing safeguard remains: refunding a qualifying purchase after its promotional coupon was already consumed creates a promotion review and pauses further promotional earning/spins. It never loses the refund or ordinary receipt points. The automatic offer-expiry policy does not silently waive this separate refund case.
 
 ## Data ownership
 
-| Tables | Responsibility |
-|---|---|
-| `customers` | Portable UUID, separate Auth identity link, unique membership identifiers and editable profile |
-| `loyalty_accounts`, `loyalty_ledger` | Fast balance projection and append-only evidence for every point change |
-| `transactions`, `transaction_items`, `transaction_payments`, `transaction_night_deals` | Immutable canonical sales/refunds/voids and stock-sale links; integer AUD units, no card credentials |
-| `coupons` | Server-issued reward snapshots and server-confirmed use |
-| `stations`, `catalog_items`, `night_deals` | Published products, prices, offers, rewards and station-owned surplus inventory |
-| `loyalty_programs` | Versioned earning policy used by each receipt |
-| `campaigns`, `campaign_awards`, `wheel_credits`, `mission_cycles`, `mission_contributions` | POS-earned promotion eligibility, one-use spins and auditable prize outcomes |
-| `private.staff_access`, `private.staff_stations` | Main-admin versus station-scoped manager access |
-| `private.pos_integrations`, `private.integration_events`, `private.idempotency_keys` | Per-store POS authorization and duplicate-operation protection |
-| `private.refund_totals`, `private.refund_lines` | Cumulative refund caps against original receipts |
-| `private.audit_logs`, `private.outbox`, `private.promotion_reviews` | Privileged-action trail, future downstream work and refund exceptions |
-| `private.push_devices`, `private.push_deliveries` | Private subscriptions and lease-based notification delivery |
+| Area | Tables |
+| --- | --- |
+| Identity | `customers`: portable UUID separate from Auth, unique membership/mobile, profile and status. |
+| Points | `loyalty_accounts`: fast current balance; `loyalty_ledger`: immutable evidence. |
+| Receipts | `transactions`, `transaction_items`, `transaction_payments`, `transaction_night_deals`. |
+| Historical rules | `loyalty_programs`, `campaign_rule_versions`, `reward_rules`, `reward_rule_products`. |
+| Benefits | `coupons`, `coupon_redemptions`, `campaign_awards`, `wheel_credits`, `mission_cycles`, `mission_contributions`. |
+| Catalog | `stations`, `catalog_items`, `night_deals`. |
+| Consent | `policy_versions`, `consent_events`, `private.account_closures`. |
+| Authority | Private staff access/stations and per-store POS integrations. |
+| Reliability | Private POS inbox, deliveries, issues, idempotency keys, integration events, refund totals/lines. |
+| Operations | Private SKU mappings, deal versions/stock movements, reconciliation manifests, health checks, recovery requests, audit/outbox. |
+| Notifications | Private push devices/deliveries with bounded leased delivery. |
 
-Every exposed table has RLS enabled and explicit grants. Anonymous roles have no application table or RPC access. Public RPC wrappers run as invokers; privileged implementations live in the unexposed `private` schema with an empty search path and explicit execution grants. Roles are checked in database tables on each privileged call, not trusted from editable user metadata. This follows the [Supabase RLS guidance](https://supabase.com/docs/guides/database/postgres/row-level-security).
+## Historical benefits and timed offers
 
-## Identity and financial invariants
+Actual purchase time selects the earning rule and SKU mapping. New earning rates are future-dated. Issued coupons bind immutable product/discount rules with amount caps, minimum spend, quantity, station and stacking restrictions. A paid reward without a valid published rule cannot deduct points. Spin credits and mission cycles retain the campaign version promised when they qualified.
 
-- Domain customer UUIDs do not depend on Supabase Auth UUIDs. Retiring an Auth identity unlinks it without destroying the loyalty history. This is not itself a complete privacy-deletion workflow.
-- A barcode/QR identifies the membership; it is not an authorization secret and never carries a trusted balance. Only a signed, active POS integration can perform checkout operations.
-- Money is integer cents; unit prices use millionths of a dollar; fuel uses millilitres. Points are integers. Receipt line totals allow at most two cents of rounding variance; supplied payment totals must match exactly.
-- Every points change inserts a ledger entry. A trigger locks the account row and updates the balance in the same transaction. `balance = sum(ledger.delta)` is the reconciliation invariant.
-- Existing receipts, receipt lines, ledger entries, integration events and audit records reject updates/deletes. Corrections append new records. A database owner can still override database controls; operational access and backups matter.
-- Redemption locks the account, checks the current reward and balance, deducts points and issues one coupon atomically. Retries reuse an actor-scoped request UUID.
-- POS delivery IDs and business transaction IDs are independently deduplicated. Reused IDs with changed canonical payloads reject, rather than silently overriding history.
-- Refunds refer to an original sale within the same integration. Cumulative receipt and line quantities/amounts cannot exceed the original. Reversals use the original eligibility and rate, with cumulative rounding. Refunds may create points debt; blocking a legitimate reversal would enable purchase/redeem/refund abuse.
-- A promotional refund reverses unused or credited benefits once. An already-consumed promotional coupon creates a staff review and pauses further promotion earning/spinning for that member; it does not discard the refund.
+Night deals bind catalog products and retain historical price/cutoff versions. Late valid sales can be recognised after expiry. Promotional claims older than seven days become automatic exceptions; ordinary purchase points remain. Locked stock cannot go negative, and a last-item conflict does not discard either paid receipt. Refunds never automatically restock food. Manual stock changes require a reason and retain movement history.
 
-## End-of-day offers and admin access
+Station managers only manage assigned branches' Tonight Only offers. Selling ends at the chosen end time or safety cutoff, no later than that branch's local business-day end. Existing safety cutoffs cannot be extended. RLS and app timers hide expired offers without deleting them or depending on cleanup jobs. A screen listing is not a stock reservation.
 
-Managers have only `nightDeals.manage` permission for assigned stations. They cannot access the main-admin customer tools, modify points, grant roles or publish other catalogs. Removing access takes effect on the next database request, including existing sessions.
+## Security and performance
 
-Each deal has a manager-selected selling end time and a separate food-safety cutoff. Selling cannot continue beyond either cutoff or the end of that station's local business day. Existing safety cutoffs cannot be extended and a deal cannot be moved to a different branch. Dates are stored as UTC instants; IANA station timezones handle Sydney daylight saving.
+Every exposed table has RLS and explicit grants. Anonymous access is limited to published policy text, not customer data or privileged RPCs. Customers read their own records. Main admins use audited, live-role-checked operations; managers cannot grant roles or adjust points. Public RPC wrappers are invokers; privileged implementations live in the private schema with empty search paths. Server keys never go into browsers or Git. Private tables intentionally have no browser policies.
 
-RLS hides expired, paused, out-of-stock and inactive-station deals. The app also schedules local expiry refreshes. No paid timer, database deletion or successful cleanup job is needed to hide an expired offer. The signed POS transaction decrements inventory once. A screen view is not a reservation; register validation is still required. Never use this feature to sell food after its safe selling cutoff.
+Balance reads use a single indexed account row. Customer, station, rule, receipt, queue and foreign-key lookups are indexed. Account locks serialize one member's changes while other members proceed independently. Multi-connection tests exercise races; production load capacity is not yet benchmarked. Member history is bounded to 50 receipts; complete browsing/export remains future work.
 
-Catalog saves carry a row version to reject stale overwrites. Publication (`active`) is distinct from menu stock (`in_stock`). Archiving preserves records referenced by coupons and history.
+Realtime is an invalidation signal, backed by focus/reconnect and bounded polling. Errors never manufacture demo points. Uncertain browser mutations retain request IDs in session storage where available. Explicit local preview mode is separate from production.
 
-## Performance and failure behavior
+## Operations, migration and recovery
 
-Owner/customer, station/time, catalog, membership and foreign-key lookups are indexed. Current balances are read from one account row, not recalculated from all history. Account locks serialize operations for one customer while unrelated customers can proceed independently. Admin lists are paged at 100; customer history is currently capped at the most recent 50 receipts and coupons at 100. Full historical browsing/export is an operational follow-up, not silently claimed as complete.
+Cron retries due receipts every minute, twenty per batch with bounded attempts/backoff, and records health every fifteen minutes. Health compares ledger/account balances, ordinary receipt points, stock movement totals and missing reconciliation days. A complete daily POS manifest additionally detects missing/unexpected receipts and differing totals. The app's own ledger cannot detect a purchase never delivered by the POS.
 
-Realtime is a refresh signal, not the source of truth. The provider also refreshes on focus/reconnect and polls every 60 seconds. Clients display connection errors instead of silently manufacturing demo records or points. An uncertain browser mutation retains its request ID in session storage for retry; normal browser storage is required for cross-refresh retry continuity.
+Admin Database Operations exposes rules, SKU mappings, queue status/retry, automatic decisions, stock movements and reconciliation. Ordinary offer exceptions require no approval. Genuine financial/identity problems cannot safely be auto-approved.
 
-The transaction outbox is durable groundwork for exports/analytics; a general outbox dispatcher is not implemented. Web Push has a separate bounded worker with deduplication, two-minute leases, stale-worker protection and at most five attempts. Delivery is at-least-once, not exactly-once. Push failures cannot roll back purchases. Generic announcements must not contain personal account information.
+The isolated native PostgreSQL restore test checks balances, permissions, rules and durable intake. It is NOT a configured/tested hosted backup. Hosted retention, offsite protection, recovery objectives, alert routing and a hosted restore drill remain launch requirements. The generic outbox has no general export dispatcher.
 
-## Evolution, portability and recovery
-
-New changes use new SQL migrations; never rewrite an applied migration. Expand the schema first, backfill in controlled batches, validate counts and ledger totals, then change readers and retire obsolete fields after a rollback window. POS contract versions and earning-policy versions are separate from schema versions. Awarded prizes preserve snapshots; policy changes must preserve historical interpretation.
-
-PostgreSQL exports must include both `public` and `private`, role/grant definitions, and the separately handled Auth identity mapping. Do not assume a table dump includes Auth provider configuration, Edge secrets, storage objects or signing keys. Customer domain IDs and integer units make another database/provider possible without rewriting historical identities. See [Supabase backups](https://supabase.com/docs/guides/platform/backups) for platform-specific coverage and limitations.
-
-Run restore drills and ledger reconciliation on a separate restored database before trusting backups. Set retention, access/deletion, encryption, monitoring and incident-response policies before collecting live customer data. Monitoring should cover rejected POS events, duplicate conflicts, balance mismatches, promotion reviews, queue backlog, latency and database resource pressure.
+Preserve domain IDs, public/private data, grants and Auth mappings during migration. Provider settings, secrets and storage objects need separate recovery plans. See [setup](SUPABASE.md), [POS contract](POS-CONTRACT.md) and [recovery runbook](RECOVERY.md).

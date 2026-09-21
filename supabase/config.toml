@@ -421,3 +421,7 @@ verify_jwt = false
 [functions.push-dispatch]
 # A private scheduler secret is verified by the handler. No browser access.
 verify_jwt = false
+
+[functions.member-support]
+# Handler validates the user token with Auth and live main-admin access by RPC.
+verify_jwt = false

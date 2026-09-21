@@ -66,6 +66,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "campaign_awards_campaign_id_campaign_version_fkey"
+            columns: ["campaign_id", "campaign_version"]
+            isOneToOne: false
+            referencedRelation: "campaign_rule_versions"
+            referencedColumns: ["campaign_id", "version"]
+          },
+          {
             foreignKeyName: "campaign_awards_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: false
@@ -91,6 +98,41 @@ export type Database = {
             columns: ["source_transaction_id"]
             isOneToOne: false
             referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaign_rule_versions: {
+        Row: {
+          active: boolean
+          campaign_id: string
+          config: Json
+          created_at: string
+          effective_from: string
+          version: number
+        }
+        Insert: {
+          active: boolean
+          campaign_id: string
+          config: Json
+          created_at?: string
+          effective_from: string
+          version: number
+        }
+        Update: {
+          active?: boolean
+          campaign_id?: string
+          config?: Json
+          created_at?: string
+          effective_from?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_rule_versions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
             referencedColumns: ["id"]
           },
         ]
@@ -181,16 +223,125 @@ export type Database = {
           },
         ]
       }
+      consent_events: {
+        Row: {
+          actor_user_id: string
+          customer_id: string
+          decision: string
+          id: number
+          policy_kind: string
+          policy_version: string
+          purpose: string
+          recorded_at: string
+        }
+        Insert: {
+          actor_user_id: string
+          customer_id: string
+          decision: string
+          id?: never
+          policy_kind: string
+          policy_version: string
+          purpose: string
+          recorded_at?: string
+        }
+        Update: {
+          actor_user_id?: string
+          customer_id?: string
+          decision?: string
+          id?: never
+          policy_kind?: string
+          policy_version?: string
+          purpose?: string
+          recorded_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consent_events_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consent_events_policy_kind_policy_version_fkey"
+            columns: ["policy_kind", "policy_version"]
+            isOneToOne: false
+            referencedRelation: "policy_versions"
+            referencedColumns: ["kind", "version"]
+          },
+        ]
+      }
+      coupon_redemptions: {
+        Row: {
+          coupon_id: string
+          created_at: string
+          discount_cents: number
+          line_id: string
+          quantity_milli: number
+          rule_id: string
+          transaction_id: string
+        }
+        Insert: {
+          coupon_id: string
+          created_at?: string
+          discount_cents: number
+          line_id: string
+          quantity_milli: number
+          rule_id: string
+          transaction_id: string
+        }
+        Update: {
+          coupon_id?: string
+          created_at?: string
+          discount_cents?: number
+          line_id?: string
+          quantity_milli?: number
+          rule_id?: string
+          transaction_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coupon_redemptions_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: true
+            referencedRelation: "coupons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupon_redemptions_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "reward_rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupon_redemptions_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupon_redemptions_transaction_id_line_id_fkey"
+            columns: ["transaction_id", "line_id"]
+            isOneToOne: false
+            referencedRelation: "transaction_items"
+            referencedColumns: ["transaction_id", "line_id"]
+          },
+        ]
+      }
       coupons: {
         Row: {
           cost_points: number
           customer_id: string
           display: Json
           expires_at: string
+          held_for_transaction_id: string | null
           id: string
           issued_at: string
           reward_id: string | null
           reward_kind: string
+          rule_id: string | null
           status: string
           title: string
           used_at: string | null
@@ -201,10 +352,12 @@ export type Database = {
           customer_id: string
           display?: Json
           expires_at?: string
+          held_for_transaction_id?: string | null
           id?: string
           issued_at?: string
           reward_id?: string | null
           reward_kind?: string
+          rule_id?: string | null
           status?: string
           title: string
           used_at?: string | null
@@ -215,10 +368,12 @@ export type Database = {
           customer_id?: string
           display?: Json
           expires_at?: string
+          held_for_transaction_id?: string | null
           id?: string
           issued_at?: string
           reward_id?: string | null
           reward_kind?: string
+          rule_id?: string | null
           status?: string
           title?: string
           used_at?: string | null
@@ -233,11 +388,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "coupons_held_for_transaction_id_fkey"
+            columns: ["held_for_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "coupons_reward_kind_reward_id_fkey"
             columns: ["reward_kind", "reward_id"]
             isOneToOne: false
             referencedRelation: "catalog_items"
             referencedColumns: ["kind", "id"]
+          },
+          {
+            foreignKeyName: "coupons_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "reward_rules"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "coupons_used_transaction_id_fkey"
@@ -389,6 +558,7 @@ export type Database = {
         Row: {
           active: boolean
           created_at: string
+          effective_from: string
           excluded_categories: string[]
           id: string
           points_denominator: number
@@ -398,6 +568,7 @@ export type Database = {
         Insert: {
           active?: boolean
           created_at?: string
+          effective_from?: string
           excluded_categories: string[]
           id: string
           points_denominator: number
@@ -407,6 +578,7 @@ export type Database = {
         Update: {
           active?: boolean
           created_at?: string
+          effective_from?: string
           excluded_categories?: string[]
           id?: string
           points_denominator?: number
@@ -461,6 +633,8 @@ export type Database = {
       mission_cycles: {
         Row: {
           award_id: string | null
+          campaign_id: string
+          campaign_version: number
           customer_id: string
           ends_at: string
           id: string
@@ -468,6 +642,8 @@ export type Database = {
         }
         Insert: {
           award_id?: string | null
+          campaign_id?: string
+          campaign_version?: number
           customer_id: string
           ends_at: string
           id?: string
@@ -475,6 +651,8 @@ export type Database = {
         }
         Update: {
           award_id?: string | null
+          campaign_id?: string
+          campaign_version?: number
           customer_id?: string
           ends_at?: string
           id?: string
@@ -487,6 +665,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "campaign_awards"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_cycles_campaign_id_campaign_version_fkey"
+            columns: ["campaign_id", "campaign_version"]
+            isOneToOne: false
+            referencedRelation: "campaign_rule_versions"
+            referencedColumns: ["campaign_id", "version"]
           },
           {
             foreignKeyName: "mission_cycles_customer_id_fkey"
@@ -507,6 +692,8 @@ export type Database = {
           id: string
           img: string
           original_price_cents: number
+          product_id: string | null
+          product_kind: string
           product_name: string
           quantity_available: number
           safety_cutoff_at: string
@@ -527,6 +714,8 @@ export type Database = {
           id?: string
           img?: string
           original_price_cents: number
+          product_id?: string | null
+          product_kind?: string
           product_name: string
           quantity_available: number
           safety_cutoff_at: string
@@ -547,6 +736,8 @@ export type Database = {
           id?: string
           img?: string
           original_price_cents?: number
+          product_id?: string | null
+          product_kind?: string
           product_name?: string
           quantity_available?: number
           safety_cutoff_at?: string
@@ -560,11 +751,140 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "night_deals_product_kind_product_id_fkey"
+            columns: ["product_kind", "product_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_items"
+            referencedColumns: ["kind", "id"]
+          },
+          {
             foreignKeyName: "night_deals_station_id_fkey"
             columns: ["station_id"]
             isOneToOne: false
             referencedRelation: "stations"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      policy_versions: {
+        Row: {
+          body: string
+          kind: string
+          published_at: string
+          published_by: string | null
+          version: string
+        }
+        Insert: {
+          body: string
+          kind: string
+          published_at?: string
+          published_by?: string | null
+          version: string
+        }
+        Update: {
+          body?: string
+          kind?: string
+          published_at?: string
+          published_by?: string | null
+          version?: string
+        }
+        Relationships: []
+      }
+      reward_rule_products: {
+        Row: {
+          product_id: string
+          product_kind: string
+          rule_id: string
+        }
+        Insert: {
+          product_id: string
+          product_kind: string
+          rule_id: string
+        }
+        Update: {
+          product_id?: string
+          product_kind?: string
+          rule_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reward_rule_products_product_kind_product_id_fkey"
+            columns: ["product_kind", "product_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_items"
+            referencedColumns: ["kind", "id"]
+          },
+          {
+            foreignKeyName: "reward_rule_products_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "reward_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reward_rules: {
+        Row: {
+          allow_stacking: boolean
+          created_at: string
+          created_by: string | null
+          discount_kind: string
+          discount_value: number
+          effective_from: string
+          enabled: boolean
+          id: string
+          max_discount_cents: number
+          max_quantity_milli: number
+          minimum_spend_cents: number
+          name: string
+          reward_id: string | null
+          reward_kind: string
+          station_ids: string[]
+          version: number
+        }
+        Insert: {
+          allow_stacking?: boolean
+          created_at?: string
+          created_by?: string | null
+          discount_kind: string
+          discount_value: number
+          effective_from: string
+          enabled?: boolean
+          id?: string
+          max_discount_cents: number
+          max_quantity_milli?: number
+          minimum_spend_cents?: number
+          name: string
+          reward_id?: string | null
+          reward_kind?: string
+          station_ids?: string[]
+          version: number
+        }
+        Update: {
+          allow_stacking?: boolean
+          created_at?: string
+          created_by?: string | null
+          discount_kind?: string
+          discount_value?: number
+          effective_from?: string
+          enabled?: boolean
+          id?: string
+          max_discount_cents?: number
+          max_quantity_milli?: number
+          minimum_spend_cents?: number
+          name?: string
+          reward_id?: string | null
+          reward_kind?: string
+          station_ids?: string[]
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reward_rules_reward_kind_reward_id_fkey"
+            columns: ["reward_kind", "reward_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_items"
+            referencedColumns: ["kind", "id"]
           },
         ]
       }
@@ -618,6 +938,7 @@ export type Database = {
           fuel_grade: string | null
           line_id: string
           litres_milli: number | null
+          mapping_id: string | null
           original_line_id: string | null
           quantity_milli: number
           sku: string | null
@@ -632,6 +953,7 @@ export type Database = {
           fuel_grade?: string | null
           line_id: string
           litres_milli?: number | null
+          mapping_id?: string | null
           original_line_id?: string | null
           quantity_milli: number
           sku?: string | null
@@ -646,6 +968,7 @@ export type Database = {
           fuel_grade?: string | null
           line_id?: string
           litres_milli?: number | null
+          mapping_id?: string | null
           original_line_id?: string | null
           quantity_milli?: number
           sku?: string | null
@@ -666,18 +989,21 @@ export type Database = {
       transaction_night_deals: {
         Row: {
           deal_price_cents: number
+          line_id: string | null
           night_deal_id: string
           quantity: number
           transaction_id: string
         }
         Insert: {
           deal_price_cents: number
+          line_id?: string | null
           night_deal_id: string
           quantity: number
           transaction_id: string
         }
         Update: {
           deal_price_cents?: number
+          line_id?: string | null
           night_deal_id?: string
           quantity?: number
           transaction_id?: string
@@ -696,6 +1022,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "transactions"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_night_deals_transaction_id_line_id_fkey"
+            columns: ["transaction_id", "line_id"]
+            isOneToOne: false
+            referencedRelation: "transaction_items"
+            referencedColumns: ["transaction_id", "line_id"]
           },
         ]
       }
@@ -835,6 +1168,8 @@ export type Database = {
       wheel_credits: {
         Row: {
           award_id: string | null
+          campaign_id: string
+          campaign_version: number
           created_at: string
           customer_id: string
           id: string
@@ -843,6 +1178,8 @@ export type Database = {
         }
         Insert: {
           award_id?: string | null
+          campaign_id?: string
+          campaign_version?: number
           created_at?: string
           customer_id: string
           id?: string
@@ -851,6 +1188,8 @@ export type Database = {
         }
         Update: {
           award_id?: string | null
+          campaign_id?: string
+          campaign_version?: number
           created_at?: string
           customer_id?: string
           id?: string
@@ -864,6 +1203,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "campaign_awards"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wheel_credits_campaign_id_campaign_version_fkey"
+            columns: ["campaign_id", "campaign_version"]
+            isOneToOne: false
+            referencedRelation: "campaign_rule_versions"
+            referencedColumns: ["campaign_id", "version"]
           },
           {
             foreignKeyName: "wheel_credits_customer_id_fkey"
@@ -899,15 +1245,33 @@ export type Database = {
         Args: { p_offset?: number; p_search?: string }
         Returns: Json
       }
+      admin_database_action: {
+        Args: { p_action: string; p_input: Json; p_request_id: string }
+        Returns: Json
+      }
+      admin_database_overview: { Args: never; Returns: Json }
       admin_summary: { Args: never; Returns: Json }
       archive_catalog: {
         Args: { p_id: string; p_kind: string }
         Returns: undefined
       }
+      begin_member_recovery: {
+        Args: { p_customer_id: string; p_request_id: string }
+        Returns: Json
+      }
       campaign_status: { Args: never; Returns: Json }
       claim_push_batch: { Args: never; Returns: Json }
+      close_my_account: {
+        Args: { p_confirmation: string; p_disclosure_version: string }
+        Returns: undefined
+      }
+      complete_registration: { Args: { p_versions: Json }; Returns: string }
       database_contract: { Args: never; Returns: Json }
       ensure_profile: { Args: { p_fields?: Json }; Returns: string }
+      finish_member_recovery: {
+        Args: { p_error_code: string; p_request_id: string; p_success: boolean }
+        Returns: undefined
+      }
       finish_push: {
         Args: {
           p_attempt: number
@@ -917,17 +1281,46 @@ export type Database = {
         }
         Returns: undefined
       }
+      ingest_pos: {
+        Args: {
+          p_event: Json
+          p_integration_id: string
+          p_payload_hash: string
+        }
+        Returns: Json
+      }
       list_staff: { Args: never; Returns: Json }
       manage_campaign: {
         Args: { p_active: boolean; p_id: string }
         Returns: undefined
       }
       manage_staff: { Args: { p_input: Json }; Returns: Json }
+      member_onboarding: { Args: never; Returns: Json }
       pos_member: {
         Args: { p_integration_id: string; p_membership_code: string }
         Returns: Json
       }
+      pos_receipt_status: {
+        Args: {
+          p_event_type: string
+          p_external_id: string
+          p_integration_id: string
+        }
+        Returns: Json
+      }
+      process_pos: {
+        Args: { p_inbox_id: string; p_integration_id: string }
+        Returns: Json
+      }
       promotion_reviews: { Args: never; Returns: Json }
+      publish_policy: {
+        Args: { p_body: string; p_kind: string; p_version: string }
+        Returns: undefined
+      }
+      receipt_processing_status: {
+        Args: { p_transaction_id: string }
+        Returns: Json
+      }
       record_pos: {
         Args: {
           p_event: Json
@@ -949,8 +1342,20 @@ export type Database = {
         Returns: undefined
       }
       save_catalog: { Args: { p_item: Json; p_kind: string }; Returns: string }
+      set_marketing_consent: {
+        Args: { p_accepted: boolean; p_request_id: string }
+        Returns: undefined
+      }
       spin_wheel: { Args: { p_request_id: string }; Returns: Json }
       staff_session: { Args: never; Returns: Json }
+      submit_pos_reconciliation: {
+        Args: {
+          p_business_date: string
+          p_integration_id: string
+          p_receipts: Json
+        }
+        Returns: Json
+      }
       unregister_push_device: {
         Args: { p_endpoint: string }
         Returns: undefined

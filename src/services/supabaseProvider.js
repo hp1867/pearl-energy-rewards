@@ -1,14 +1,16 @@
-import { requireSupabase, supabase, authRedirect } from '../supabase/client'
+import { requireSupabase, supabase, authRedirect, getAuthOptions } from '../supabase/client'
+import { authErrorMessage } from '../supabase/settings'
 import { tierForPoints } from './ids'
 import { normaliseNightDeal } from './nightDeals'
+import { normaliseMobile } from './memberIdentity'
 
 const errors = new EventTarget(), changed = new EventTarget(), inflight = new Map()
 function report(error) {
   const message = ['PGRST202','42P01','42883'].includes(error?.code)
     ? 'The Supabase database migration has not been applied yet. Please complete database setup.'
-    : error?.message || 'Could not connect to the database. Please try again.'
+    : authErrorMessage(error)
   errors.dispatchEvent(new CustomEvent('error', { detail: message }))
-  return new Error(message)
+  return Object.assign(new Error(message), { code: error?.code, status: error?.status })
 }
 async function checked(operation) {
   const { data, error } = await operation
@@ -67,7 +69,7 @@ function couponRow(row) {
   return { ...row.display, id: row.id, rewardId: row.reward_id, title: row.title, cost: row.cost_points, cat: row.display?.cat || 'Reward', img: row.display?.img || '🎁', color: row.display?.color || '#0057b8',
     status: row.status, redeemedAt: row.issued_at, activatedAt: row.issued_at, expiresAt: row.expires_at, usedAt: row.used_at }
 }
-const nightDealRow = row => ({ id: row.id, stationId: row.station_id, productName: row.product_name, description: row.description, img: row.img, originalPriceCents: row.original_price_cents,
+const nightDealRow = row => ({ id: row.id, stationId: row.station_id, productId: row.product_id, productName: row.product_name, description: row.description, img: row.img, originalPriceCents: row.original_price_cents,
   dealPriceCents: row.deal_price_cents, quantityAvailable: row.quantity_available, status: row.status, businessDate: row.business_date, startsAt: row.starts_at, sellUntil: row.sell_until, safetyCutoffAt: row.safety_cutoff_at, version: row.version })
 const stationRow = row => ({ ...row.data, id: row.id, name: row.name, city: row.city, state: row.state, lat: row.latitude, lng: row.longitude, timezone: row.timezone, active: row.active, version: row.version })
 function customerRow(row, account = row, email = row.email || '') {
@@ -80,6 +82,9 @@ async function currentCustomer() {
   const { data: { user }, error } = await requireSupabase().auth.getUser()
   if (error) throw error
   if (!user) throw new Error('Please sign in again')
+  const onboarding = await rpc('member_onboarding')
+  if (onboarding.needsEmail || onboarding.needsPhone || onboarding.needsConsent) return { uid: user.id, email: user.email, mobile: user.user_metadata?.mobile || '', onboarding }
+  await rpc('ensure_profile')
   let row = await checked(supabase.from('customers').select('*').eq('auth_user_id', user.id).maybeSingle())
   if (!row) { await rpc('ensure_profile'); row = await checked(supabase.from('customers').select('*').eq('auth_user_id', user.id).single()) }
   const [account, history, campaign] = await Promise.all([
@@ -100,6 +105,8 @@ const fail = message => async () => ({ ok: false, message })
 export function createSupabaseProvider() {
   return {
     mode: 'supabase',
+    authOptions: getAuthOptions,
+    resendConfirmation: email => checked(requireSupabase().auth.resend({ type: 'signup', email: email.trim(), options: { emailRedirectTo: authRedirect() } })),
     onError(cb) { const fn = event => cb(event.detail); errors.addEventListener('error', fn); return () => errors.removeEventListener('error', fn) },
     onAuth(cb, onError) {
       let active = true, last
@@ -112,25 +119,52 @@ export function createSupabaseProvider() {
       try {
         const client = requireSupabase()
         const { data: { subscription } } = client.auth.onAuthStateChange((event, session) => emit(session, event === 'PASSWORD_RECOVERY'))
-        client.auth.getSession().then(({ data, error }) => { if (error) throw error; if (last === undefined) emit(data.session) }).catch(e => { if (active) { cb(null); onError?.(e); report(e) } })
+        client.auth.getSession().then(({ data, error }) => { if (error) throw error; if (last === undefined) emit(data.session) }).catch(e => { if (active) { cb(null); const friendly = new Error(authErrorMessage(e)); onError?.(friendly); report(friendly) } })
         return () => { active = false; subscription.unsubscribe() }
       } catch (error) { cb(null); onError?.(error); report(error); return () => { active = false } }
     },
     async signUp(fields) {
+      const mobile = normaliseMobile(fields.mobile)
       const { data: result, error } = await requireSupabase().auth.signUp({ email: fields.email.trim(), password: fields.password,
-        options: { emailRedirectTo: authRedirect(), data: { firstName: fields.firstName, lastName: fields.lastName, mobile: fields.mobile, dob: fields.dob || null } } })
+        options: { emailRedirectTo: authRedirect(), data: { firstName: fields.firstName, lastName: fields.lastName, mobile, dob: fields.dob || null } } })
       if (error) throw error
-      if (result.session) await rpc('ensure_profile')
       return { requiresConfirmation: !result.session }
     },
-    async signIn({ email, password }) { await checked(requireSupabase().auth.signInWithPassword({ email: email.trim(), password })); await rpc('ensure_profile') },
+    async signIn({ email, password }) { await checked(requireSupabase().auth.signInWithPassword({ email: email.trim(), password })) },
     async signInWithProvider(name) {
       const provider = name.toLowerCase()
       if (!['google','apple'].includes(provider)) throw new Error('Unsupported sign-in provider')
+      if (!(await getAuthOptions())[provider]) throw new Error('This sign-in option is not available yet. Please use email and password.')
       return checked(requireSupabase().auth.signInWithOAuth({ provider, options: { redirectTo: authRedirect() } }))
     },
     async resetPassword(email) { return checked(requireSupabase().auth.resetPasswordForEmail(email.trim(), { redirectTo: `${authRedirect()}?reset=1` })) },
     async setPassword(password) { return checked(requireSupabase().auth.updateUser({ password })) },
+    async requestPhoneCode(value) {
+      if (!(await getAuthOptions({ force: true })).phone) throw new Error('Phone verification is not available yet. Pearl Energy needs to complete its SMS provider setup.')
+      const phone = normaliseMobile(value)
+      await checked(requireSupabase().auth.updateUser({ phone }))
+      return phone
+    },
+    async verifyPhoneCode(phone, token) {
+      await checked(requireSupabase().auth.verifyOtp({ phone: normaliseMobile(phone), token: token.trim(), type: 'phone_change' }))
+      changed.dispatchEvent(new Event('refresh'))
+    },
+    publicPolicies: async () => (await Promise.all(['terms', 'privacy', 'closure'].map(kind => checked(requireSupabase().from('policy_versions').select('*').eq('kind', kind).order('published_at', { ascending: false }).limit(30))))).flat(),
+    async completeRegistration(versions) { await rpc('complete_registration', { p_versions: versions }); changed.dispatchEvent(new Event('refresh')) },
+    setMarketingConsent: accepted => mutate('set_marketing_consent', { p_accepted: accepted }),
+    consentHistory: () => checked(requireSupabase().from('consent_events').select('id,purpose,decision,policy_version,recorded_at').order('id', { ascending: false }).limit(100)),
+    async closeMyAccount(confirmation, version) { await rpc('close_my_account', { p_confirmation: confirmation, p_disclosure_version: version }); await requireSupabase().auth.signOut() },
+    adminPublishPolicy: (kind, version, body) => rpc('publish_policy', { p_kind: kind, p_version: version, p_body: body }),
+    async adminSendRecovery(customerId) {
+      const requestId = crypto.randomUUID()
+      const { data: result, error } = await requireSupabase().functions.invoke('member-support', { body: { customerId, requestId } })
+      if (error) {
+        let detail
+        try { detail = await error.context?.json() } catch { /* network failure has no response */ }
+        throw new Error(detail?.error || 'Recovery request was not confirmed. Wait before retrying; an email may already have been requested.')
+      }
+      return result
+    },
     async signOutUser() { return checked(requireSupabase().auth.signOut({ scope: 'local' })) },
     subscribeCustomer(uid, cb, onError) { return watch([{ table: 'customers', filter: `auth_user_id=eq.${uid}` }, 'loyalty_accounts','transactions','campaigns'], currentCustomer, cb, onError) },
     async updateProfile(uid, fields) { await rpc('update_profile', { p_fields: fields }); changed.dispatchEvent(new Event('refresh')) },
@@ -177,7 +211,15 @@ export function createSupabaseProvider() {
     async adminRemove(name, id) { await rpc('archive_catalog', { p_kind: name, p_id: String(id) }); changed.dispatchEvent(new Event('refresh')) },
     async adminListCustomers({ search = '', offset = 0 } = {}) { return (await rpc('admin_customers', { p_search: search, p_offset: offset })).map(row => customerRow(row)) },
     adminSummary: () => rpc('admin_summary'),
-    getReceipt: id => checked(requireSupabase().from('transactions').select('id,event_type,receipt_number,occurred_at,currency,subtotal_cents,tax_cents,total_cents,stations(name),transaction_items(*),transaction_payments(*),transaction_night_deals(*)').eq('id', id).single()),
+    adminDatabaseOverview: () => rpc('admin_database_overview'),
+    adminDatabaseAction: (action, input) => mutate('admin_database_action', { p_action: action, p_input: input }),
+    async getReceipt(id) {
+      const [receipt, processing] = await Promise.all([
+        checked(requireSupabase().from('transactions').select('id,event_type,receipt_number,occurred_at,currency,subtotal_cents,tax_cents,total_cents,stations(name),transaction_items(*),transaction_payments(*),transaction_night_deals(*)').eq('id', id).single()),
+        rpc('receipt_processing_status', { p_transaction_id: id }),
+      ])
+      return { ...receipt, processing }
+    },
     async adminAdjustPoints(customerId, delta, meta = {}) { return mutate('adjust_points', { p_customer_id: customerId, p_delta: Number(delta), p_reason: meta.store || meta.reason || '' }) },
     async lookupCustomer(number) { return (await rpc('admin_customers', { p_search: String(number), p_offset: 0 })).map(row => customerRow(row))[0] || null },
     async adminBroadcast(notification) { await rpc('save_catalog', { p_kind: 'notifs', p_item: { ...notification, id: notification.id || crypto.randomUUID() } }); changed.dispatchEvent(new Event('refresh')) },

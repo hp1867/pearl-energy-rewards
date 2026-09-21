@@ -7,6 +7,9 @@ import { data, DATA_MODE } from '../services/data'
 import { readiness } from '../config/integrations'
 import { menuGroups } from '../data/mockData'
 import { NIGHT_DEAL_PERMISSION, newNightDealDefaults, normaliseNightDeal, toDateTimeLocalValue } from '../services/nightDeals'
+import { authErrorMessage } from '../supabase/settings'
+import DatabaseOperations from './DatabaseOperations'
+import PolicySettings from './PolicySettings'
 
 // Live staff access is checked against Supabase role tables on every request.
 
@@ -23,6 +26,8 @@ const SECTIONS = [
   { id: 'notifications', label: 'Notifications', icon: Bell, adminOnly: true },
   { id: 'staffAccess', label: 'Staff Access', icon: ShieldCheck, adminOnly: true },
   { id: 'campaigns', label: 'Loyalty Campaigns', icon: Award, adminOnly: true },
+  { id: 'database', label: 'POS & Database', icon: ShieldCheck, adminOnly: true },
+  { id: 'policies', label: 'Policies & Consent', icon: ShieldCheck, adminOnly: true },
 ]
 
 // CRUD field configs ---------------------------------------------------------
@@ -35,12 +40,14 @@ const CONFIGS = {
     prepare: (row) => normaliseNightDeal(row),
     fields: [
       { key: 'stationId', label: 'Station', type: 'select', optionsFrom: 'stations', required: true, full: true },
+      { key: 'productId', label: 'Catalog product (for POS validation)', type: 'select', optionsFrom: 'products', required: true, full: true },
       { key: 'productName', label: 'Product name', placeholder: 'Classic Beef Pie', required: true },
       { key: 'img', label: 'Emoji / icon', placeholder: '🥧' },
       { key: 'description', label: 'Short customer message', type: 'textarea', full: true },
       { key: 'originalPriceCents', label: 'Regular price ($)', type: 'currency', step: '0.01', required: true },
       { key: 'dealPriceCents', label: 'Tonight price ($)', type: 'currency', step: '0.01', required: true },
       { key: 'quantityAvailable', label: 'Quantity available', type: 'number', step: '1', required: true },
+      { key: 'stockReason', label: 'Reason when changing existing stock', placeholder: 'Count correction, waste, or new stock', full: true },
       { key: 'status', label: 'Status', type: 'select', options: [
         { value: 'active', label: 'Active — visible to customers' },
         { value: 'paused', label: 'Paused — hidden temporarily' },
@@ -201,6 +208,8 @@ export default function AdminApp() {
         {section === 'notifications' && <Notifications />}
         {section === 'staffAccess' && <StaffAccess />}
         {section === 'campaigns' && <Campaigns />}
+        {section === 'database' && <DatabaseOperations />}
+        {section === 'policies' && <PolicySettings />}
       </main>
     </div>
   )
@@ -215,7 +224,7 @@ function Login({ onOk, connectionError }) {
   const submit = async () => {
     setErr(''); setBusy(true)
     try { onOk(await data.adminSignIn({ email, password: pw })) }
-    catch (error) { setErr(error.message || 'Sign-in failed') }
+    catch (error) { setErr(authErrorMessage(error)) }
     finally { setBusy(false) }
   }
   return (
@@ -388,13 +397,15 @@ function EditModal({ cfg, row, access, onClose }) {
   const set = (key, value) => setForm((current) => ({ ...current, [key]: value }))
 
   const liveCats = useLive(data.subscribeCategories)
+  const liveProducts = useLive(data.subscribeMenu)
   const liveStations = useLive(data.subscribeStations)
   const allowedStations = access.admin ? liveStations : liveStations.filter((station) => access.stationIds?.map(String).includes(String(station.id)))
   const optionsFor = (field) => field.optionsFrom === 'categories'
     ? liveCats.map((category) => ({ value: category.key, label: `${category.emoji || ''} ${category.label}`.trim() }))
     : field.optionsFrom === 'stations'
       ? allowedStations.map((station) => ({ value: String(station.id), label: `${station.name} — ${station.city}` }))
-      : (field.options || [])
+      : field.optionsFrom === 'products' ? liveProducts.map(product => ({ value: String(product.id), label: product.name }))
+        : (field.options || [])
 
   useEffect(() => {
     cfg.fields.forEach((field) => {
@@ -404,7 +415,7 @@ function EditModal({ cfg, row, access, onClose }) {
       }
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liveCats, liveStations])
+  }, [liveCats, liveStations, liveProducts])
 
   const setMidnight = () => {
     const defaults = newNightDealDefaults()
@@ -547,10 +558,17 @@ function Customers() {
   const [adjust, setAdjust] = useState(null)
   const [offset, setOffset] = useState(0), [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [recoveryBusy, setRecoveryBusy] = useState(null), [recoveryNotice, setRecoveryNotice] = useState('')
+  const sendRecovery = async customer => {
+    if (recoveryBusy) return
+    setRecoveryBusy(customer.customerId); setError(''); setRecoveryNotice('')
+    try { const result = await data.adminSendRecovery(customer.customerId); setRecoveryNotice(result.state === 'sent' ? 'Password-reset email requested for the registered address. No account details were changed.' : 'The recovery request is pending. Do not repeatedly resend.') }
+    catch (e) { setError(e.message) } finally { setRecoveryBusy(null) }
+  }
   const refresh = () => { setLoading(true); return data.adminListCustomers({ search: q, offset }).then(setCustomers).catch(e => setError(e.message)).finally(() => setLoading(false)) }
   useEffect(() => { const timer = setTimeout(refresh, 250); return () => clearTimeout(timer) }, [q, offset])
 
-  const list = customers.filter((c) => !q || c.customerNumber?.includes(q) || c.name?.toLowerCase().includes(q.toLowerCase()) || c.email?.toLowerCase().includes(q.toLowerCase()))
+  const list = DATA_MODE === 'supabase' ? customers : customers.filter((c) => !q || c.customerNumber?.includes(q) || c.name?.toLowerCase().includes(q.toLowerCase()) || c.email?.toLowerCase().includes(q.toLowerCase()))
 
   return (
     <div className="panel">
@@ -558,7 +576,7 @@ function Customers() {
         <h3>{loading ? 'Loading customers…' : `${customers.length} customers on this page`}</h3>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#f4f6fb', borderRadius: 10, padding: '8px 12px' }}>
           <Search size={16} color="#8a93a6" />
-          <input value={q} onChange={(e) => { setQ(e.target.value); setOffset(0) }} placeholder="Search number / name / email" style={{ border: 'none', background: 'transparent', outline: 'none', width: 220 }} />
+          <input value={q} onChange={(e) => { setQ(e.target.value); setOffset(0) }} placeholder="Member # / name / email / phone" style={{ border: 'none', background: 'transparent', outline: 'none', width: 250 }} />
         </div>
       </div>
       <table>
@@ -568,13 +586,14 @@ function Customers() {
             <tr key={c.uid}>
               <td>{c.customerNumber}</td><td>{c.name}</td><td><span className="tag">{c.tier}</span></td>
               <td>{c.points?.toLocaleString()}</td><td>{c.lifetimePoints?.toLocaleString()}</td><td>{c.email || '—'}</td>
-              <td style={{ textAlign: 'right' }}><button className="btn ghost sm" onClick={() => setAdjust(c)}>Adjust points</button></td>
+              <td style={{ textAlign: 'right' }}><button className="btn ghost sm" onClick={() => setAdjust(c)}>Adjust points</button>{data.adminSendRecovery && <button className="btn ghost sm" disabled={!!recoveryBusy} onClick={() => sendRecovery(c)}>{recoveryBusy === c.customerId ? 'Requesting…' : 'Email password reset'}</button>}</td>
             </tr>
           ))}
           {!list.length && <tr><td colSpan="7" style={{ color: '#8a93a6' }}>No customers found.</td></tr>}
         </tbody>
       </table>
       {error && <p className="panel-error">{error}</p>}
+      {recoveryNotice && <p role="status" className="info-note">{recoveryNotice}</p>}
       {DATA_MODE === 'supabase' && <div className="modal-actions"><button className="btn ghost" disabled={offset === 0 || loading} onClick={() => setOffset(value => Math.max(0, value - 100))}>Previous</button><button className="btn ghost" disabled={customers.length < 100 || loading} onClick={() => setOffset(value => value + 100)}>Next page</button></div>}
       {adjust && <AdjustModal customer={adjust} onClose={() => { setAdjust(null); refresh() }} />}
     </div>

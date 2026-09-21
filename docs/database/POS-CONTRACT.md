@@ -1,58 +1,38 @@
-# Pearl Energy POS contract — Supabase
+# Pearl Energy POS contract
 
-Version: `1`. This is a provider-neutral server contract; the selected POS vendor still needs an adapter and acceptance testing. It does not process card payments. Register software must durably queue completed sales and reconcile any rejected events.
+Version `1`, provider-neutral. This API records completed purchases; it does not process payments or authorise discounts at checkout. The real vendor adapter must durably queue receipts and submit complete daily manifests. Signing keys remain unprovisioned until the POS is selected and tested.
 
-Base URL: `https://zaooprrcqphzocigtrxg.supabase.co/functions/v1/pos-api`
+Base: `https://zaooprrcqphzocigtrxg.supabase.co/functions/v1/pos-api`
 
-Routes:
-
-- `POST /v1/pos/member` — minimal membership/coupon lookup at the register.
-- `POST /v1/pos/transactions` — record a completed sale, refund or void.
-
-These URLs work only after the function and migrations are deployed and an integration/key is configured. Browser Auth tokens do not authorize these endpoints. `verify_jwt = false` is deliberate: the function independently requires timestamped HMAC authentication on both routes.
+| POST route | Purpose |
+| --- | --- |
+| `/v1/pos/member` | Minimal membership/coupon lookup; not a reservation. |
+| `/v1/pos/transactions` | Durable sale/refund/void intake and processing. |
+| `/v1/pos/receipts/status` | This integration's receipt status by business ID/type. |
+| `/v1/pos/reconcile` | Compare a complete daily POS receipt manifest. |
 
 ## Authentication
 
-| Header | Required value |
-|---|---|
-| `Content-Type` | `application/json` |
-| `x-pearl-contract-version` | `1` |
-| `x-pearl-key-id` | Assigned per-integration key identifier |
-| `x-pearl-timestamp` | Current Unix seconds |
-| `x-pearl-signature` | `sha256=` followed by hex HMAC-SHA256 |
-
-Sign this exact UTF-8 string, using a server-held secret of at least 32 characters:
+All routes require JSON, `x-pearl-contract-version: 1`, assigned `x-pearl-key-id`, current Unix seconds in `x-pearl-timestamp`, and `x-pearl-signature: sha256=<hex HMAC-SHA256>`. Sign the exact UTF-8 bytes below with a server-held secret of at least 32 characters:
 
 ```text
 v1.<key-id>.<timestamp>.<exact raw JSON body>
 ```
 
-Whitespace changes in the body change the signature. The key ID is authenticated; the server obtains provider and integration ID from its key configuration, not from a caller-controlled provider header. The timestamp must be within five minutes. Retries use a fresh timestamp/signature but the same business payload and operation IDs. Rotations can overlap old/new key IDs mapped to the same integration, then remove the retired key. Do not create a new integration merely to rotate a secret.
+The five-minute signature window concerns delivery time, not purchase time. Retry with a fresh signature/timestamp and unchanged business payload. Key configuration binds provider and integration UUID; the database verifies the active store/station. Rotate keys within the same integration so duplicate protection remains intact. Browser JWTs do not authorise these routes. Gateway `verify_jwt=false` is deliberate: the function verifies HMAC. Configure rate limits and vendor-supported network restrictions before activation.
 
-Each integration maps to exactly one provider/store/station and must be active. Secrets belong in Edge Function secret configuration and the POS server's secret store, never in the browser, database rows or Git. Configure gateway rate limits and vendor-supported network restrictions before launch.
+## Sale example
 
-## Member lookup
-
-```json
-{"membershipCode":"10000000"}
-```
-
-Also accepts the issued `PE-...` membership identifier or `PEARL|1|PE-...` QR content. Legacy demo QR payloads containing balances are rejected.
-
-Returns `customerNumber`, `membershipId`, `firstName`, `points` and available coupons (`id`, `rewardId`, `title`, `expiresAt`), plus a diagnostic request ID. It does not expose email, mobile, DOB or receipt history. Unknown or inactive memberships reject. Lookup is not a coupon reservation or guarantee of later availability.
-
-## Completed sale example
-
-All example IDs below are illustrative, not live credentials. Use a current timestamp and actual receipt identifiers.
+Illustrative IDs only; supply real register, membership and receipt identifiers.
 
 ```json
 {
   "contractVersion": 1,
-  "eventId": "store-a-sale-001-delivery",
+  "eventId": "sale-001-delivery",
   "eventType": "sale",
-  "externalTransactionId": "store-a-sale-001",
-  "occurredAt": "2026-09-14T05:00:00Z",
-  "businessDate": "2026-09-14",
+  "externalTransactionId": "sale-001",
+  "occurredAt": "2026-09-21T05:00:00Z",
+  "businessDate": "2026-09-21",
   "storeId": "vendor-store-a",
   "terminalId": "terminal-1",
   "receiptNumber": "001",
@@ -61,48 +41,65 @@ All example IDs below are illustrative, not live credentials. Use a current time
   "taxCents": 91,
   "totalCents": 1000,
   "membershipCode": "10000000",
-  "items": [{
-    "lineId": "1",
-    "sku": "COFFEE",
-    "description": "Coffee",
-    "category": "drinks",
-    "quantityMilli": 2000,
-    "unitPriceMicros": 5000000,
-    "totalCents": 1000,
-    "eligibleForPoints": true
-  }],
-  "payments": [{"method": "card", "amountCents": 1000}],
+  "items": [{"lineId":"1","sku":"COFFEE","description":"Coffee","category":"drinks","quantityMilli":2000,"unitPriceMicros":5000000,"totalCents":1000,"eligibleForPoints":true}],
+  "payments": [{"method":"card","amountCents":1000}],
   "couponIds": [],
   "nightDealSales": []
 }
 ```
 
-`subtotalCents` is the register's pre-discount, tax-inclusive subtotal; `totalCents` is the final tax-inclusive amount. `taxCents` is its included tax. The adapter must normalize vendor conventions explicitly. Item totals include allocated discounts so they add up to the final receipt total, allowing two cents of rounding variance. Negative discount lines are not accepted: allocate discounts to the affected positive lines. Refund amounts are positive magnitudes; `eventType` determines the reversal.
+Subtotal is pre-discount, tax-inclusive; total is final tax-inclusive amount and tax is its included tax. Allocate discounts to positive lines, not negative discount lines. Item totals allow two cents rounding variance; supplied payments must sum exactly. Refund amounts are positive magnitudes, reversed according to event type.
 
-For fuel, add `fuel: {"gradeCode":"ULP91","litresMilli":42110}` to the line. A price of $1.799/L is `unitPriceMicros: 1799000`. Do not send currency-formatted strings or floating-point money. `quantityMilli: 1000` means one item/unit.
+One unit is quantityMilli 1000. Fuel may add `fuel:{"gradeCode":"ULP91","litresMilli":42110}`; $1.799/L is unitPriceMicros 1799000. Bodies are limited to 256 KiB, 1-200 unique lines, 10 payments, 20 coupons and 50 night deals. Fields, quantities and nesting are bounded. No PAN, CVV, PIN, payment tokens, magnetic stripe or raw gateway responses are accepted.
 
-Optional `couponIds` identifies benefits actually applied by the register; the signed sale consumes them atomically. `nightDealSales` contains objects with `dealId` and positive whole-unit `quantity`. The POS vendor must map reward IDs/campaign benefits to permitted SKUs, discount limits and stacking rules; the current API does not calculate or authorize a payment discount merely from a coupon title.
+Member lookup accepts only `{"membershipCode":"10000000"}`, also issued PE-... or PEARL|1|PE-... identifiers. It returns membership number/ID, first name, points and available coupon IDs/titles/expiry; no email, phone, DOB or receipt history. Unknown/inactive membership is not silently treated as non-member. Omit membership deliberately for non-member sales.
 
-## Validation and refunds
+## Product-linked benefits
 
-- Maximum body: 256 KiB; 1–200 unique receipt lines; at most 10 payment entries, 20 unique coupon IDs and 50 unique night-deal IDs.
-- AUD only. Whole integer cents, millilitres and scaled quantities; bounded field lengths. Included tax cannot exceed the total. Supplied payment entries must sum exactly to the total.
-- No PAN, CVV, PIN, magnetic stripe, payment token or raw payment-gateway response is accepted. Only method and amount are stored for payment reconciliation.
-- Omit membership for a non-member sale. An explicitly unknown membership rejects rather than silently losing its loyalty credit. Capture that rejection for staff reconciliation.
-- Refund/void requires `originalExternalTransactionId`. Use new event/external transaction IDs for the reversal. Refund lines identify the original via `originalLineId` (or matching `lineId`). Original ownership, eligibility and cumulative amounts/quantities are enforced.
-- A void must reverse an unrefunded sale in full. Refunds must not include `couponIds` or `nightDealSales`; expired food must not be automatically restocked.
-- Coupon and night-deal availability is checked at server processing time. Delayed/offline events that arrive after a cutoff, or a race for the final item, can reject the whole transaction. The vendor integration must define reservation/preflight or explicit exception reconciliation before these benefits are used at live checkout. Never silently discard a completed payment or send a changed payload under the same ID.
+Publish SKU mappings and typed reward rules through Database Operations before connecting the vendor. Checkout rules must agree; a coupon title is not discount authorisation.
 
-## Response and retry contract
+Include couponIds and one couponRedemptions claim per coupon:
 
 ```json
-{"ok":true,"duplicate":false,"transactionId":"database-uuid","pointsDelta":10,"requestId":"diagnostic-uuid"}
+{"couponId":"11111111-1111-4111-8111-111111111111","lineId":"coffee","quantityMilli":1000,"discountCents":500}
 ```
 
-`pointsDelta` is the base earning/reversal amount. Additional campaign entries are in the ledger; use a fresh member lookup for the current balance. A duplicate returns the same transaction ID and base points with `duplicate: true`; the diagnostic request ID can change. A new delivery ID for the same unchanged business transaction is also deduplicated.
+That line supplies grossTotalCents: gross must equal final amount plus claimed discounts. Checks cover ownership, purchase-time availability, original rule, mapped SKU/product, station, minimum spend, quantity/cap and stacking. Issued coupons keep their original rule.
 
-HTTP `400/413/415` means input validation; `401/403` means authentication/authorization; `409` means IDs reused with conflicting data; `422` means a business/database constraint failed; `503` means retryable backend failure. An unexpected `500` or timeout is an uncertain outcome: retry the same IDs/payload with backoff, and reconcile rather than assuming no write occurred.
+Night-deal claims include dealId, complete lineId and whole-unit quantity. Mapped SKU, historical station/product/price/cutoffs and line total must match. No coupon/night-deal stacking on the same line. Current stock is locked and cannot become negative.
 
-## POS launch acceptance gate
+Late messages use occurredAt and historical rules, not arrival time. Promotional claims older than seven days become automatic exceptions. Malformed/missing/invalid optional benefits do not reject an otherwise valid financial receipt: preserve ordinary points on eligible actual spend, grant no unverified extra benefit, and log a sanitized automatic decision. An owned active coupon claimed as used is closed on validation failure; another person's coupon is untouched. No routine offer approval is required.
 
-Test real vendor events on a separate integration: sale, fuel volume/rounding, mixed/excluded categories, partial/full refund, void, no-member sale, bad member, concurrent duplicates, timeout-after-commit retry, conflicting IDs, two simultaneous coupon uses, final-item races, inactive station/key, secret rotation and offline events spanning an expiry. Verify receipt counts, stock, coupon state and `sum(ledger.delta) = account.balance` afterward. Local SQL tests do not replace these multi-connection and vendor tests.
+## Responses and retries
+
+HTTP 200 indicates processed; 202 indicates durable intake accepted but awaiting processing/correction. Inspect state and transactionId: acceptance is not necessarily points posted.
+
+```json
+{"ok":true,"accepted":true,"inboxId":"database-uuid","state":"processed","transactionId":"database-uuid","pointsDelta":10,"duplicate":false,"requestId":"diagnostic-uuid"}
+```
+
+pointsDelta is the ordinary award/reversal, not all campaign entries. Identical retries do not award again. Delivery IDs may change, but the business ID/type/content may not. A conflicting payload returns 409; immutable intake is not edited. Corrections need explicit reversal/new-operation semantics agreed with the vendor.
+
+Intake commits before processing. Temporary benefit failures retain core receipt/points and queue remaining work. Cron retries due receipts every minute, twenty per batch, with bounded backoff and at most ten attempts. Refund-before-sale is retryable. Invalid financial/identity input remains for technical correction, not automatic rewards.
+
+400/413/415: invalid/oversized input. 401/403: unauthorised. 409: conflicting IDs. 422: rejected business/database input. 503, unexpected 500 or timeout: uncertain outcome; retry unchanged IDs/payload with backoff and check status.
+
+Status body: `{"externalTransactionId":"sale-001","eventType":"sale"}`. Unknown intake returns 404, accepted:false. All status queries are integration-scoped.
+
+## Refunds and reconciliation
+
+Refund/void has a new business ID and originalExternalTransactionId. Lines identify originalLineId (or matching lineId). Original membership, quantities, amounts, eligibility and earning rule determine reversal. A void reverses an unrefunded sale in full. Refunds cannot consume coupons or automatically replenish surplus food.
+
+A separate consumed-promotional-coupon refund safeguard can pause further promotions pending review; it does not discard a refund or ordinary points. This differs from automatic offer-expiry exceptions.
+
+Reconciliation takes up to 2,000,000 bytes and 10,000 unique receipt operations:
+
+```json
+{"businessDate":"2026-09-21","receipts":[{"externalTransactionId":"sale-001","eventType":"sale","totalCents":1000}]}
+```
+
+Send the complete day, including separate refund/void operations. Results identify missing/unexpected receipts and amount differences. A match verifies IDs/types/counts/totals, not every line/tax or independent payment settlement. Missing vendor transmissions cannot be detected from the app's ledger alone.
+
+## Real-vendor acceptance gate
+
+Test sale/refund/void/rounding/excluded categories, malformed discounts, concurrent duplicates, response loss after commit, conflicting IDs, coupon/last-stock races, key rotation, inactive stores, offline expiry, seven-day boundaries and complete daily reconciliation. Verify ordinary/campaign points, historical versions, stock and permissions. Local SQL/HMAC tests do not replace the real integration test.

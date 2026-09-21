@@ -497,7 +497,8 @@ export function MyCoupons() {
   const expiryOf = (r) => r.expiresAt || new Date(new Date(r.redeemedAt).getTime() + COUPON_LIFETIME_MS).toISOString()
   const statusOf = (r) => {
     if (r.status === 'redeemed') return 'redeemed'
-    if (r.status === 'revoked') return 'expired'
+    if (r.status === 'held') return 'held'
+    if (r.status === 'revoked') return 'closed'
     if (new Date(expiryOf(r)) < new Date()) return 'expired'
     return 'active'
   }
@@ -506,6 +507,8 @@ export function MyCoupons() {
   const filtered = pendingRewards.filter(r => filter === 'all' || statusOf(r) === filter)
 
   const statusConfig = {
+    held: { label: 'Unavailable', color: '#8a5700', bg: '#fff4d6', icon: '⌛' },
+    closed: { label: 'Closed', color: 'var(--muted)', bg: 'var(--surface-c)', icon: '—' },
     active: { label: 'Active', color: '#1e8e4e', bg: '#e7f7ee', icon: '✅' },
     redeemed: { label: 'Redeemed', color: 'var(--muted)', bg: 'var(--surface-c)', icon: '🎉' },
     expired: { label: 'Expired', color: '#c0392b', bg: '#fdecea', icon: '⌛' },
@@ -519,7 +522,7 @@ export function MyCoupons() {
         </div>
         {/* Filter tabs */}
         <div className="h-scroll" style={{ marginBottom: 16 }}>
-          {['all', 'active', 'redeemed', 'expired'].map(f => (
+          {['all', 'active', 'held', 'redeemed', 'closed', 'expired'].map(f => (
             <button key={f} className={`chip ${filter === f ? 'active' : ''}`} onClick={() => setFilter(f)}>
               {f === 'all' ? 'All' : statusConfig[f].label}
             </button>
@@ -559,6 +562,7 @@ export function MyCoupons() {
                     </div>
                     <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                        {status === 'held' && <p role="status" style={{ fontSize: 13, color: '#8a5700', width: '100%' }}>This reward is unavailable. Your saved purchase and ordinary points are unaffected.</p>}
                         <div style={{ fontWeight: 800, fontSize: 20, color: 'var(--blue)' }}>{reward.cost.toLocaleString()} pts</div>
                         {canUse && (
                           <span style={{ fontSize: 12, fontWeight: 700, color: left <= 2 ? '#c0392b' : '#1e8e4e' }}>
@@ -598,7 +602,7 @@ export function MyCoupons() {
 
 /* ---------------- Edit Profile ---------------- */
 export function EditProfile() {
-  const { member, updateProfile, setOverlay } = useApp()
+  const { member, updateProfile, setOverlay, mode } = useApp()
   const [f, setF] = useState({
     firstName: member.firstName || '', lastName: member.lastName || '',
     mobile: member.mobile || '', dob: member.dob || '',
@@ -623,7 +627,7 @@ export function EditProfile() {
           <div style={{ flex: 1 }}><span style={label}>First name</span><input style={input} {...bind('firstName')} placeholder="First name" /></div>
           <div style={{ flex: 1 }}><span style={label}>Last name</span><input style={input} {...bind('lastName')} placeholder="Last name" /></div>
         </div>
-        <div><span style={label}>Mobile</span><input style={input} type="tel" {...bind('mobile')} placeholder="+61 4xx xxx xxx" /></div>
+        <div><span style={label}>Mobile</span><input style={input} type="tel" {...bind('mobile')} readOnly={mode === 'supabase'} placeholder="+61 4xx xxx xxx" />{mode === 'supabase' && <button onClick={() => setOverlay('account')} style={{ marginTop: 8, color: 'var(--blue)' }}>Change with SMS verification in Account settings</button>}</div>
         <div><span style={label}>Date of birth</span><input style={input} type="date" {...bind('dob')} /></div>
         <div>
           <span style={label}>Email (login — cannot be changed here)</span>

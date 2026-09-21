@@ -1,13 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
-const env = import.meta.env
-const url = String(env.VITE_SUPABASE_URL || '').trim()
-const key = String(env.VITE_SUPABASE_PUBLISHABLE_KEY || env.VITE_SUPABASE_ANON_KEY || '').trim()
-// Never allow a secret/service-role key in the browser.
-let publicKey = key.startsWith('sb_publishable_')
-if (key.startsWith('eyJ')) {
-  try { publicKey = JSON.parse(atob(key.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).role === 'anon' } catch { publicKey = false }
-}
-export const isSupabaseConfigured = publicKey && (/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(url) || /^http:\/\/(localhost|127\.0\.0\.1):54321$/.test(url))
+import { resolveSupabaseSettings } from './settings'
+const { url, key, configured } = resolveSupabaseSettings(import.meta.env)
+export const isSupabaseConfigured = configured
 /** @type {import('@supabase/supabase-js').SupabaseClient<import('./database.types').Database> | null} */
 export const supabase = isSupabaseConfigured ? createClient(url, key, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'pkce', storageKey: 'pearl-supabase-auth' },
@@ -17,3 +11,16 @@ export function requireSupabase() {
   return supabase
 }
 export const authRedirect = () => `${window.location.origin}/`
+
+let optionsPromise
+export function getAuthOptions({ force = false } = {}) {
+  requireSupabase()
+  if (force) optionsPromise = null
+  optionsPromise ||= fetch(`${url}/auth/v1/settings`, { headers: { apikey: key }, signal: AbortSignal.timeout(10000) })
+    .then(async response => {
+      if (!response.ok) throw new Error('Could not load sign-in options. Please retry.')
+      const settings = await response.json()
+      return { google: settings.external?.google === true, apple: settings.external?.apple === true, email: settings.external?.email === true, phone: settings.external?.phone === true }
+    }).catch(error => { optionsPromise = null; throw error })
+  return optionsPromise
+}

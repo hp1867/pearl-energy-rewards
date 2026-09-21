@@ -1,20 +1,35 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Mail, Phone, Lock, User, Calendar, Loader2 } from 'lucide-react'
 import { BrandLogo } from '../components/Brand'
 import { useApp } from '../context/AppContext'
 import { data } from '../services/data'
+import { authErrorMessage } from '../supabase/settings'
 
 export default function AuthScreen() {
   const { signup, login, loginProvider, mode, user, connectionError, retryConnection, logout } = useApp()
   const [view, setView] = useState(user?.recovery ? 'password' : 'login')
   const [terms, setTerms] = useState(false), [busy, setBusy] = useState(false)
   const [error, setError] = useState(''), [message, setMessage] = useState('')
+  const [providers, setProviders] = useState([]), [needsConfirmation, setNeedsConfirmation] = useState(false)
   const [form, setForm] = useState({ firstName:'', lastName:'', email:'', mobile:'', dob:'', password:'', confirm:'' })
   const bind = key => ({ value:form[key], onChange:event => setForm(previous => ({ ...previous,[key]:event.target.value })) })
+  useEffect(() => { if (user?.recovery) setView('password') }, [user?.recovery])
+  useEffect(() => {
+    let active = true
+    if (mode === 'local') setProviders(['Google','Apple'])
+    else data.authOptions?.().then(options => { if (active) setProviders(['Google','Apple'].filter(name => options[name.toLowerCase()])) }).catch(() => {})
+    const query = new URLSearchParams(window.location.search), hash = new URLSearchParams(window.location.hash.slice(1))
+    const callbackError = query.get('error_description') || hash.get('error_description')
+    if (callbackError) {
+      setError(authErrorMessage({ code: query.get('error_code') || hash.get('error_code'), message: callbackError }))
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+    return () => { active = false }
+  }, [mode])
   const run = async task => {
     if (busy) return
     setError(''); setMessage(''); setBusy(true)
-    try { await task() } catch (e) { setError(e.message || 'Unable to complete sign-in. Please retry.') } finally { setBusy(false) }
+    try { await task() } catch (e) { setNeedsConfirmation(e.code === 'email_not_confirmed'); setError(authErrorMessage(e)) } finally { setBusy(false) }
   }
   const submit = event => {
     event.preventDefault()
@@ -30,7 +45,7 @@ export default function AuthScreen() {
         window.history.replaceState({}, '', '/')
         setView('login'); setMessage('Password updated. Log in with your new password.')
       } else if (view === 'signup') {
-        if (!terms) throw new Error('Please accept the Terms and Privacy Policy')
+        if (!terms) throw new Error('Please acknowledge the account registration rule')
         if (form.password !== form.confirm) throw new Error('Passwords do not match')
         const result = await signup(form)
         if (result?.requiresConfirmation) {
@@ -59,7 +74,7 @@ export default function AuthScreen() {
           </div>}
           {view !== 'password' && <Field icon={Mail} label="Email address" type="email" required autoComplete="email" {...bind('email')} />}
           {view === 'signup' && <>
-            <Field icon={Phone} label="Mobile number (optional)" type="tel" autoComplete="tel" maxLength={24} {...bind('mobile')} />
+            <Field icon={Phone} label="Mobile number (verification required)" type="tel" required autoComplete="tel" maxLength={24} {...bind('mobile')} />
             <Field icon={Calendar} label="Date of birth (optional)" type="date" max={new Date().toISOString().slice(0,10)} {...bind('dob')} />
           </>}
           {view !== 'reset' && <Field icon={Lock} label={view === 'password' ? 'New password' : 'Password'} type="password" required minLength={view === 'login' ? undefined : 10} autoComplete={view === 'login' ? 'current-password' : 'new-password'} {...bind('password')} />}
@@ -69,19 +84,20 @@ export default function AuthScreen() {
           </>}
           {view === 'signup' && <label style={{ display:'flex',gap:10,fontSize:13,marginBottom:18 }}>
             <input type="checkbox" checked={terms} onChange={event => setTerms(event.target.checked)} required />
-            I accept the Terms and Privacy Policy
+            One account per email and verified phone number. I will verify my phone and accept the membership terms and privacy notice before activating my membership. Accounts and points cannot be merged.
           </label>}
           {view === 'login' && <button type="button" onClick={() => { setView('reset');setError('');setMessage('') }} style={{ display:'block',margin:'0 0 18px auto',fontSize:13,color:'var(--primary)',fontWeight:600 }}>Forgot password?</button>}
           {error && <div role="alert" style={errorStyle}>{error}</div>}
+          {needsConfirmation && data.resendConfirmation && <button type="button" className="btn ghost" disabled={busy || !form.email} onClick={() => run(async () => { await data.resendConfirmation(form.email); setMessage('A new confirmation email has been requested. Open it in this browser.'); setNeedsConfirmation(false) })}>Resend confirmation email</button>}
           {message && <div role="status" style={{ ...errorStyle,background:'#e7f7ee',color:'#155c35' }}>{message}</div>}
           <button className="btn" type="submit" disabled={busy}>
             {busy ? <Loader2 size={18} className="spin" /> : { login:'Log in',signup:'Create account',reset:'Send reset link',password:'Save password' }[view]}
           </button>
         </form>
-        {['login','signup'].includes(view) && <>
+        {['login','signup'].includes(view) && providers.length > 0 && <>
           <p style={{ textAlign:'center',margin:'20px 0',color:'var(--muted)',fontSize:12 }}>OR CONTINUE WITH</p>
           <div style={{ display:'flex',gap:12 }}>
-            {['Google','Apple'].map(name => <button key={name} className="btn ghost" disabled={busy} onClick={() => run(() => loginProvider(name))}>{name}</button>)}
+            {providers.map(name => <button key={name} className="btn ghost" disabled={busy} onClick={() => run(() => loginProvider(name))}>{name}</button>)}
           </div>
         </>}
         <p style={{ textAlign:'center',marginTop:22,fontSize:14,color:'var(--ink-soft)' }}>

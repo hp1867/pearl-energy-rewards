@@ -7,6 +7,7 @@ site_url = "https://pearl-energy-rewards.vercel.app"
 additional_redirect_urls = [
   "https://pearl-energy-rewards.vercel.app/",
   "https://pearl-energy-rewards.vercel.app/?reset=1",
+  "https://pearl-energy-rewards.vercel.app/recovery.html",
   "http://localhost:5173/",
   "http://localhost:5173/?reset=1",
   "http://127.0.0.1:5173/",

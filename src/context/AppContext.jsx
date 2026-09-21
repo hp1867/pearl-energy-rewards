@@ -107,7 +107,7 @@ export function AppProvider({ children }) {
   }
   const value = {
     mode: DATA_MODE, tab, setTab, overlay, setOverlay, overlayArg, setOverlayArg, toast, notify,
-    user, member, authed: !!member, resolving: user === undefined, profileError, connectionError,
+    user, member, authed: !!member && !member.onboarding, resolving: user === undefined, profileError, connectionError,
     retryConnection: () => { setProfileError(''); setConnectionError(''); setRetry(value => value+1) },
     offers: visible(offers), rewards: visible(rewards), menu: visible(menu), categories: visible(categories),
     fuelPrices: visible(fuelPrices), stations: visible(stations), notifications: visible(notifications), nightDeals,

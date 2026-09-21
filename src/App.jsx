@@ -11,6 +11,7 @@ import ProfileScreen from './screens/ProfileScreen'
 import NightDealsScreen from './screens/NightDealsScreen'
 import BottomNav from './components/BottomNav'
 import Toast from './components/Toast'
+import MemberOnboarding, { MemberSettings } from './screens/MemberAccess'
 import { FuelPrices, StoreLocator, WalletCard, ScanModal, Receipts, Notifications, MyCoupons, EditProfile, HelpSupport, TiersInfo, SpinWheel, ItemDetails } from './screens/Overlays'
 
 const TABS = {
@@ -35,10 +36,11 @@ const OVERLAYS = {
   wheel: SpinWheel,
   nightdeals: NightDealsScreen,
   itemdetails: ItemDetails,
+  account: MemberSettings,
 }
 
 export default function App() {
-  const { authed, user, resolving, tab, overlay, profileError, connectionError, retryConnection, logout } = useApp()
+  const { authed, user, member, resolving, tab, overlay, profileError, connectionError, retryConnection, logout } = useApp()
   const [splashDone, setSplashDone] = useState(false)
 
   useEffect(() => {
@@ -51,7 +53,7 @@ export default function App() {
 
   // keep splash up until the brand timer AND auth state have both resolved;
   // also while a signed-in user's live customer doc is still loading.
-  const splash = !splashDone || resolving || (!!user && !user.recovery && !authed && !profileError)
+  const splash = !splashDone || resolving || (!!user && !user.recovery && !member && !profileError)
 
   return (
     <div className="stage">
@@ -68,7 +70,7 @@ export default function App() {
               <button className="btn" onClick={retryConnection}>Retry</button>
               <button className="btn ghost" onClick={() => logout().catch(() => {})} style={{ marginTop: 12 }}>Sign out</button>
             </div>
-          ) : !authed || user?.recovery ? (
+          ) : member?.onboarding && !user?.recovery ? <MemberOnboarding /> : !authed || user?.recovery ? (
             <motion.div key="auth" initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ position: 'absolute', inset: 0 }}>
               <AuthScreen />
             </motion.div>

@@ -14,17 +14,18 @@ create temporary table pearl_smoke_fixture (
 insert into pearl_smoke_fixture default values;
 grant select on pearl_smoke_fixture to authenticated, service_role;
 
-insert into auth.users(id,email,email_confirmed_at)
-select member_uid,member_uid::text || '@example.invalid',now() from pearl_smoke_fixture
+insert into auth.users(id,email,email_confirmed_at,phone,phone_confirmed_at)
+select member_uid,member_uid::text || '@example.invalid',now(),'61400009991',now() from pearl_smoke_fixture
 union all
-select other_uid,other_uid::text || '@example.invalid',now() from pearl_smoke_fixture;
+select other_uid,other_uid::text || '@example.invalid',now(),'61400009992',now() from pearl_smoke_fixture;
+insert into public.policy_versions(kind,version,body) select kind,'smoke-only-current','ROLLBACK ONLY: Synthetic consent-policy text for database verification. This never commits.' from unnest(array['terms','privacy']) kind;
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub',(select member_uid::text from pearl_smoke_fixture),true);
 do $$
 declare member_id uuid;
 begin
-  member_id := public.ensure_profile('{}');
+  member_id := public.complete_registration('{"terms":"smoke-only-current","privacy":"smoke-only-current"}');
   if member_id is distinct from public.ensure_profile('{}') then
     raise exception 'Profile creation is not idempotent';
   end if;
@@ -89,7 +90,7 @@ reset role;
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub',(select other_uid::text from pearl_smoke_fixture),true);
-select public.ensure_profile('{}');
+select public.complete_registration('{"terms":"smoke-only-current","privacy":"smoke-only-current"}');
 do $$ begin
   if (select count(*) from public.customers) <> 1
     or exists(select 1 from public.transactions)

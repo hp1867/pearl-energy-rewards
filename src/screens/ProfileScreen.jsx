@@ -11,7 +11,7 @@ const formatJoined = (v) => {
 }
 
 export default function ProfileScreen() {
-  const { member, logout, setOverlay } = useApp()
+  const { member, logout, setOverlay, mode } = useApp()
 
   const rows = [
     { icon: Star, label: 'Membership Tiers', go: () => setOverlay('tiers') },
@@ -20,6 +20,7 @@ export default function ProfileScreen() {
     { icon: CreditCard, label: 'Saved Wallet Card', go: () => setOverlay('wallet') },
     { icon: Bell, label: 'Notifications', go: () => setOverlay('notifications') },
     { icon: HelpCircle, label: 'Help & Support', go: () => setOverlay('help') },
+    ...(mode === 'supabase' ? [{ icon: Pencil, label: 'Account & Privacy', go: () => setOverlay('account') }] : []),
   ]
 
   return (

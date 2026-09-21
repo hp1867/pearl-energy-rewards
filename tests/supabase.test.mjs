@@ -16,6 +16,14 @@ async function as(role, uid, work) {
 }
 const rpc = (name, args) => one(`select public.${name}(${args.map((_, i) => `$${i + 1}`).join(',')}) as result`, args).then(r => r.result)
 const pos = (event, hash = 'a'.repeat(64)) => as('service_role', null, () => rpc('record_pos', [integration, event, hash]))
+async function retainedReview(event, expectedMessage, expectedState = 'review') {
+  const result = await pos(event)
+  assert.equal(result.state, expectedState)
+  const inbox = await one('select last_error,transaction_id from private.pos_inbox where id=$1', [result.inboxId])
+  assert.match(inbox.last_error, expectedMessage)
+  assert.equal(inbox.transaction_id, null)
+  return result
+}
 const sale = (overrides = {}) => ({
   contractVersion: 1, provider: 'test', eventId: randomUUID(), eventType: 'sale',
   externalTransactionId: randomUUID(), occurredAt: new Date().toISOString(), businessDate: '2026-09-14',
@@ -31,7 +39,8 @@ before(async () => {
   await db.exec(`
     create role anon; create role authenticated; create role service_role bypassrls;
     create schema auth;
-    create table auth.users (id uuid primary key, email text unique, email_confirmed_at timestamptz, raw_user_meta_data jsonb default '{}');
+    create sequence auth.test_phone;
+    create table auth.users (id uuid primary key, email text unique, email_confirmed_at timestamptz, phone text unique default ('614'||lpad(nextval('auth.test_phone')::text,8,'0')), phone_confirmed_at timestamptz default now(), raw_user_meta_data jsonb default '{}');
     create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
     grant usage on schema auth, public to anon, authenticated, service_role;
     grant execute on function auth.uid() to anon, authenticated, service_role;
@@ -44,11 +53,16 @@ before(async () => {
   for (const [id, email] of [[customer, 'customer@test.invalid'], [other, 'other@test.invalid'], [admin, 'admin@test.invalid'], [manager, 'manager@test.invalid']]) {
     await query('insert into auth.users(id,email,email_confirmed_at) values ($1,$2,now())', [id, email])
   }
-  customerId = await as('authenticated', customer, () => rpc('ensure_profile', [{}]))
-  otherId = await as('authenticated', other, () => rpc('ensure_profile', [{}]))
+  await db.exec("insert into public.policy_versions(kind,version,body) select kind,'test-v1','LOCAL TEST FIXTURE ONLY. These are synthetic policies and must never be published to customers.' from unnest(array['terms','privacy','closure']) kind")
+  customerId = await as('authenticated', customer, () => rpc('complete_registration', [{ terms: 'test-v1', privacy: 'test-v1' }]))
+  otherId = await as('authenticated', other, () => rpc('complete_registration', [{ terms: 'test-v1', privacy: 'test-v1' }]))
   await query("insert into private.staff_access(user_id,role) values ($1,'admin')", [admin])
   await db.exec("insert into public.stations(id,name) values ('a','Pearl Test A'),('b','Pearl Test B')")
   integration = (await one("insert into private.pos_integrations(provider,station_id,external_store_id,active) values ('test','a','external-a',true) returning id")).id
+  await db.exec("insert into public.catalog_items(kind,id,title,price_cents) values('menu','test-drink','Test drink',500),('menu','test-pie','Test pie',600)")
+  for (const [sku,product] of [['DRINK','test-drink'],['PIE','test-pie']]) {
+    await query("insert into private.pos_product_mappings(integration_id,sku,product_kind,product_id,category,eligible_for_points,effective_from) values($1,$2,'menu',$3,'bakery',true,'-infinity')",[integration,sku,product])
+  }
 })
 after(() => db.close())
 
@@ -77,7 +91,7 @@ test('customer identity is stable, profiles are idempotent, and reads are owner 
   const rows = await as('authenticated', customer, () => query('select id from public.customers'))
   assert.deepEqual(rows.rows, [{ id: customerId }])
   await assert.rejects(as('authenticated', customer, () => rpc('update_profile', [{ points: 99999 }])), /Unsupported/)
-  await as('authenticated', customer, () => rpc('update_profile', [{ firstName: 'Pearl', preferences: { marketing: false } }]))
+  await as('authenticated', customer, () => rpc('update_profile', [{ firstName: 'Pearl' }]))
   assert.equal((await one('select first_name from public.customers where id=$1', [customerId])).first_name, 'Pearl')
 })
 
@@ -96,16 +110,18 @@ test('POS records atomically, retries only once and conflicts reject altered pay
   assert.equal((await as('authenticated', other, () => query('select * from public.transaction_items'))).rows.length, 0)
 })
 
-test('bad line/payment writes roll back receipt, ledger and account changes', async () => {
+test('invalid financial input is retained for review without posting a receipt or points', async () => {
   const prior = await one('select balance from public.loyalty_accounts where customer_id=$1', [customerId])
-  await assert.rejects(pos(sale({ payments: [{ method: 'card', amountCents: 9 }] })), /Payment totals/)
+  await retainedReview(sale({ payments: [{ method: 'card', amountCents: 9 }] }), /Payment totals/)
   const event = sale(); event.items[0].quantityMilli = -1
-  await assert.rejects(pos(event), /check constraint/)
+  await retainedReview(event, /check constraint/)
   assert.deepEqual(await one('select balance from public.loyalty_accounts where customer_id=$1', [customerId]), prior)
 })
 
 test('reward deduction and coupon creation are idempotent, bounded and owner-only', async () => {
   await as('authenticated', admin, () => rpc('save_catalog', ['rewards', { id: 'coffee', title: 'Coffee', cost: 40, img: '☕' }]))
+  const rule=(await one("insert into public.reward_rules(reward_id,name,version,effective_from,discount_kind,discount_value,max_discount_cents) values('coffee','Test coffee',1,'-infinity','free',0,500) returning id")).id
+  await query("insert into public.reward_rule_products values($1,'menu','test-drink')",[rule])
   const request = randomUUID()
   const result = await as('authenticated', customer, () => rpc('redeem_reward', ['coffee', request]))
   assert.equal(result.ok, true)
@@ -117,6 +133,14 @@ test('reward deduction and coupon creation are idempotent, bounded and owner-onl
   await assert.rejects(as('authenticated', customer, () => query("update public.coupons set status='redeemed'")), /permission denied/)
 })
 
+test('an unconfigured reward cannot charge points or issue an unusable paid coupon', async () => {
+  await as('authenticated', admin, () => rpc('save_catalog', ['rewards', { id: 'unconfigured', title: 'Not configured', cost: 1 }]))
+  const before = await one('select balance from public.loyalty_accounts where customer_id=$1', [customerId])
+  await assert.rejects(as('authenticated', customer, () => rpc('redeem_reward', ['unconfigured', randomUUID()])), /No points have been deducted/)
+  assert.deepEqual(await one('select balance from public.loyalty_accounts where customer_id=$1', [customerId]), before)
+  assert.equal((await one("select count(*)::int as n from public.coupons where reward_id='unconfigured'")).n, 0)
+})
+
 test('refunds use original ownership/eligible lines and cannot exceed the original', async () => {
   const event = sale()
   await pos(event)
@@ -124,11 +148,11 @@ test('refunds use original ownership/eligible lines and cannot exceed the origin
     items: [{ ...event.items[0], totalCents: 5000, quantityMilli: 500, eligibleForPoints: false }], payments: [{ method: 'card', amountCents: 5000 }] })
   const result = await pos(refund)
   assert.equal(result.pointsDelta, -50)
-  await assert.rejects(pos({ ...refund, eventId: randomUUID(), externalTransactionId: randomUUID(), membershipCode: '10000001' }), /membership differs/)
+  await retainedReview({ ...refund, eventId: randomUUID(), externalTransactionId: randomUUID(), membershipCode: '10000001' }, /membership differs/)
   const remaining = await pos({ ...refund, eventId: randomUUID(), externalTransactionId: randomUUID() })
   assert.equal(remaining.pointsDelta, -50)
-  await assert.rejects(pos({ ...refund, eventId: randomUUID(), externalTransactionId: randomUUID() }), /exceeds/)
-  await assert.rejects(pos({ ...refund, eventId: randomUUID(), externalTransactionId: randomUUID(), originalExternalTransactionId: 'missing' }), /Original sale not found/)
+  await retainedReview({ ...refund, eventId: randomUUID(), externalTransactionId: randomUUID() }, /exceeds/)
+  await retainedReview({ ...refund, eventId: randomUUID(), externalTransactionId: randomUUID(), originalExternalTransactionId: 'missing' }, /Original sale not found/, 'retry')
 })
 
 test('ledger and receipt history cannot be edited even through privileged database writes', async () => {
@@ -185,7 +209,7 @@ test('spin credits are POS-issued, one-use and idempotent; another member cannot
 test('missions issue one server prize for four fuel receipts; a refund reverses its bonus', async () => {
   const uid=randomUUID()
   await query('insert into auth.users(id,email,email_confirmed_at) values ($1,$2,now())',[uid,'mission@test.invalid'])
-  const id=await as('authenticated',uid,()=>rpc('ensure_profile',[{}]))
+  const id=await as('authenticated',uid,()=>rpc('complete_registration',[{ terms: 'test-v1', privacy: 'test-v1' }]))
   const number=String((await one('select customer_number from public.customers where id=$1',[id])).customer_number)
   const originalConfig=(await one("select config from public.campaigns where id='fuel_mission'")).config
   await query("update public.campaigns set config=jsonb_set(config,'{prizes}',$1) where id='fuel_mission'",[JSON.stringify([{type:'points',value:100,label:'100 Bonus Points',weight:100}])])
@@ -208,7 +232,7 @@ test('missions issue one server prize for four fuel receipts; a refund reverses 
 test('double-points bonuses cannot be reversed twice across source and target refunds', async () => {
   const uid=randomUUID()
   await query('insert into auth.users(id,email,email_confirmed_at) values ($1,$2,now())',[uid,'double@test.invalid'])
-  const id=await as('authenticated',uid,()=>rpc('ensure_profile',[{}]))
+  const id=await as('authenticated',uid,()=>rpc('complete_registration',[{ terms: 'test-v1', privacy: 'test-v1' }]))
   const number=String((await one('select customer_number from public.customers where id=$1',[id])).customer_number)
   const config=(await one("select config from public.campaigns where id='shop_wheel'")).config
   await query("update public.campaigns set config=jsonb_set(config,'{prizes}',$1) where id='shop_wheel'",[JSON.stringify([{id:'double',type:'double',label:'Double',weight:100}])])
@@ -225,15 +249,18 @@ test('double-points bonuses cannot be reversed twice across source and target re
 test('consumed promotional coupons create an admin review without losing the refund', async () => {
   const uid=randomUUID()
   await query('insert into auth.users(id,email,email_confirmed_at) values ($1,$2,now())',[uid,'coupon@test.invalid'])
-  const id=await as('authenticated',uid,()=>rpc('ensure_profile',[{}]))
+  const id=await as('authenticated',uid,()=>rpc('complete_registration',[{ terms: 'test-v1', privacy: 'test-v1' }]))
   const number=String((await one('select customer_number from public.customers where id=$1',[id])).customer_number)
   const config=(await one("select config from public.campaigns where id='shop_wheel'")).config
-  await query("update public.campaigns set config=jsonb_set(config,'{prizes}',$1) where id='shop_wheel'",[JSON.stringify([{id:'drink',type:'coupon',title:'Free drink',weight:100}])])
+  const rule=(await one("select id from public.reward_rules where reward_id='coffee'")).id
+  await query("update public.campaigns set config=jsonb_set(config,'{prizes}',$1) where id='shop_wheel'",[JSON.stringify([{id:'drink',type:'coupon',title:'Free drink',weight:100,ruleId:rule}])])
   const source=sale({membershipCode:number})
   await pos(source)
   await as('authenticated',uid,()=>rpc('spin_wheel',[randomUUID()]))
   const coupon=(await one('select id from public.coupons where customer_id=$1',[id])).id
-  await pos(sale({membershipCode:number,couponIds:[coupon]}))
+  const checkout=sale({membershipCode:number,couponIds:[coupon],couponRedemptions:[{couponId:coupon,lineId:'drink',quantityMilli:1000,discountCents:500}]})
+  checkout.items.push({lineId:'drink',sku:'DRINK',description:'Drink',category:'bakery',quantityMilli:1000,unitPriceMicros:5000000,totalCents:0,grossTotalCents:500,eligibleForPoints:true})
+  assert.equal((await pos(checkout)).state,'processed')
   const refund=await pos({...source,eventId:randomUUID(),externalTransactionId:randomUUID(),eventType:'refund',originalExternalTransactionId:source.externalTransactionId})
   assert.equal(refund.ok,true)
   assert.equal((await as('authenticated',uid,()=>rpc('campaign_status',[]))).promotionHold,true)
@@ -282,11 +309,15 @@ test('register lookup returns only checkout data and requires an active service 
   await assert.rejects(as('service_role',null,()=>rpc('pos_member',[integration,'UNKNOWN'])),/not found/)
 })
 
-test('coupon consumption and last-item inventory are atomic and retries do not consume twice', async () => {
+test('valid product-linked coupons and stock apply once; later failures retain the sale', async () => {
   const coupon=(await one("select id from public.coupons where customer_id=$1 and reward_id='coffee' and status='active'",[customerId])).id
-  const deal=(await one("insert into public.night_deals(station_id,product_name,original_price_cents,deal_price_cents,quantity_available,business_date,starts_at,sell_until,safety_cutoff_at) values ('a','Last two pies',600,300,2,current_date,now()-interval '1 minute',now()+interval '1 hour',now()+interval '1 hour') returning id")).id
-  const event=sale({couponIds:[coupon],nightDealSales:[{dealId:deal,quantity:2}]})
+  const deal=(await one("insert into public.night_deals(station_id,product_name,product_id,original_price_cents,deal_price_cents,quantity_available,business_date,starts_at,sell_until,safety_cutoff_at) values ('a','Last two pies','test-pie',600,300,2,current_date,now()-interval '1 minute',now()+interval '1 hour',now()+interval '1 hour') returning id")).id
+  const event=sale({couponIds:[coupon],couponRedemptions:[{couponId:coupon,lineId:'drink',quantityMilli:1000,discountCents:500}],nightDealSales:[{dealId:deal,quantity:2,lineId:'pies'}]})
+  event.items[0].totalCents=9400
+  event.items.push({lineId:'drink',sku:'DRINK',description:'Drink',category:'bakery',quantityMilli:1000,unitPriceMicros:5000000,totalCents:0,grossTotalCents:500,eligibleForPoints:true},
+    {lineId:'pies',sku:'PIE',description:'Two pies',category:'bakery',quantityMilli:2000,unitPriceMicros:3000000,totalCents:600,eligibleForPoints:true})
   const first=await pos(event)
+  assert.equal(first.state,'processed')
   assert.equal((await pos(event)).transactionId,first.transactionId)
   assert.deepEqual(await one('select quantity_available,status from public.night_deals where id=$1',[deal]),{quantity_available:0,status:'sold_out'})
   assert.equal((await one('select used_transaction_id from public.coupons where id=$1',[coupon])).used_transaction_id,first.transactionId)
@@ -295,10 +326,10 @@ test('coupon consumption and last-item inventory are atomic and retries do not c
   await assert.rejects(query('update public.transaction_night_deals set quantity=999'),/append-only/)
   const balance=await one('select balance from public.loyalty_accounts where customer_id=$1',[customerId])
   const count=(await one('select count(*) as n from public.transactions')).n
-  await assert.rejects(pos(sale({couponIds:[coupon]})),/Coupon is unavailable/)
-  await assert.rejects(pos(sale({nightDealSales:[{dealId:deal,quantity:1}]})),/deal is unavailable/)
-  assert.equal((await one('select count(*) as n from public.transactions')).n,count)
-  assert.deepEqual(await one('select balance from public.loyalty_accounts where customer_id=$1',[customerId]),balance)
+  assert.equal((await pos(sale({couponIds:[coupon]}))).state,'processed')
+  assert.equal((await pos(sale({nightDealSales:[{dealId:deal,quantity:1}]}))).state,'processed')
+  assert.equal((await one('select count(*) as n from public.transactions')).n,count+2)
+  assert.equal((await one('select balance from public.loyalty_accounts where customer_id=$1',[customerId])).balance,balance.balance+200)
 })
 
 test('push queue deduplicates, reclaims expired leases and rejects stale worker acknowledgements', async () => {
@@ -331,7 +362,7 @@ test('push queue deduplicates, reclaims expired leases and rejects stale worker 
 test('retiring an authentication identity preserves the portable customer and immutable ledger', async () => {
   const uid=randomUUID()
   await query('insert into auth.users(id,email,email_confirmed_at) values ($1,$2,now())',[uid,'retired@test.invalid'])
-  const id=await as('authenticated',uid,()=>rpc('ensure_profile',[{}]))
+  const id=await as('authenticated',uid,()=>rpc('complete_registration',[{ terms: 'test-v1', privacy: 'test-v1' }]))
   await as('authenticated',admin,()=>rpc('adjust_points',[id,50,'Migration identity preservation check',randomUUID()]))
   await query('delete from auth.users where id=$1',[uid])
   assert.equal((await one('select auth_user_id from public.customers where id=$1',[id])).auth_user_id,null)
@@ -353,4 +384,67 @@ test('editable authentication metadata never grants staff privileges', async () 
   assert.equal(await as('authenticated',other,()=>rpc('staff_session',[])),null)
   await assert.rejects(as('authenticated',other,()=>rpc('admin_customers',['',0])),/Main-admin/)
   await assert.rejects(as('authenticated',other,()=>rpc('manage_staff',[{email:'other@test.invalid',stationIds:['a']}])),/Main-admin/)
+})
+
+test('email and normalized verified phone identify one membership; metadata cannot claim a phone', async () => {
+  assert.equal((await one("select private.normalise_phone('0412 345 678') as phone")).phone, '+61412345678')
+  assert.equal((await one("select private.normalise_phone('+61 (412) 345-678') as phone")).phone, '+61412345678')
+  await assert.rejects(query("insert into auth.users(id,email) values($1,'customer@test.invalid')", [randomUUID()]), /unique/)
+  const uid = randomUUID()
+  await query("insert into auth.users(id,email,email_confirmed_at,phone,phone_confirmed_at,raw_user_meta_data) values($1,'verify@test.invalid',now(),'61412345678',null,$2)", [uid, { mobile: '61400000001', phone_verified: true }])
+  assert.equal((await as('authenticated', uid, () => rpc('member_onboarding', []))).needsPhone, true)
+  await assert.rejects(as('authenticated', uid, () => rpc('complete_registration', [{ terms: 'test-v1', privacy: 'test-v1' }])), /Verify your mobile/)
+  assert.equal((await one('select count(*) as n from public.customers where auth_user_id=$1', [uid])).n, 0)
+  await query('update auth.users set phone_confirmed_at=now() where id=$1', [uid])
+  const id = await as('authenticated', uid, () => rpc('complete_registration', [{ terms: 'test-v1', privacy: 'test-v1' }]))
+  assert.equal((await one('select mobile from public.customers where id=$1', [id])).mobile, '+61412345678')
+  await assert.rejects(query("insert into public.customers(mobile) values('+61412345678')"), /unique/)
+  await assert.rejects(as('authenticated', uid, () => rpc('update_profile', [{ mobile: '0499 999 999' }])), /SMS verification/)
+  await query('update auth.users set phone_confirmed_at=null where id=$1', [uid])
+  assert.equal((await as('authenticated', uid, () => query('select * from public.customers'))).rows.length, 0)
+})
+
+test('consent choices are append-only, owner-scoped and cannot be bypassed through profile preferences', async () => {
+  const request = randomUUID()
+  await as('authenticated', customer, () => rpc('set_marketing_consent', [true, request]))
+  await as('authenticated', customer, () => rpc('set_marketing_consent', [true, request]))
+  await assert.rejects(as('authenticated', customer, () => rpc('set_marketing_consent', [false, request])), /different choice/)
+  await as('authenticated', customer, () => rpc('set_marketing_consent', [false, randomUUID()]))
+  const rows = (await as('authenticated', customer, () => query("select decision from public.consent_events where purpose='marketing' order by id"))).rows
+  assert.deepEqual(rows, [{ decision: 'accepted' }, { decision: 'withdrawn' }])
+  assert.equal((await one('select preferences from public.customers where id=$1', [customerId])).preferences.marketing, false)
+  await assert.rejects(as('authenticated', customer, () => rpc('update_profile', [{ preferences: { marketing: true } }])), /consent setting/)
+  await assert.rejects(query("update public.consent_events set decision='accepted'"), /append-only/)
+  await assert.rejects(query("update public.policy_versions set body='Changed legal text'"), /append-only/)
+  await assert.rejects(as('authenticated', other, () => rpc('publish_policy', ['privacy', 'v2', 'Unauthorised customer changes to the public privacy policy text.'])), /Main-admin/)
+  assert.equal((await as('anon', null, () => query('select * from public.policy_versions'))).rows.length, 3)
+})
+
+test('closing an account requires its disclosure and keeps history without transferring anything', async () => {
+  const uid = randomUUID()
+  await query("insert into auth.users(id,email,email_confirmed_at) values($1,'close@test.invalid',now())", [uid])
+  const id = await as('authenticated', uid, () => rpc('complete_registration', [{ terms: 'test-v1', privacy: 'test-v1' }]))
+  await assert.rejects(as('authenticated', uid, () => rpc('close_my_account', ['YES', 'test-v1'])), /Type CLOSE/)
+  await assert.rejects(as('authenticated', uid, () => rpc('close_my_account', ['CLOSE', 'old-version'])), /current account closure disclosure/)
+  await as('authenticated', uid, () => rpc('close_my_account', ['CLOSE', 'test-v1']))
+  await as('authenticated', uid, () => rpc('close_my_account', ['CLOSE', 'test-v1']))
+  assert.equal((await one('select status from public.customers where id=$1', [id])).status, 'closed')
+  assert.equal((await one('select count(*) as n from private.account_closures where customer_id=$1', [id])).n, 1)
+  assert.equal((await one('select count(*) as n from public.consent_events where customer_id=$1', [id])).n, 2)
+  await assert.rejects(as('authenticated', uid, () => rpc('ensure_profile', [{}])), /not active/)
+  await assert.rejects(as('authenticated', uid, () => rpc('spin_wheel', [randomUUID()])), /active customer/)
+})
+
+test('support recovery is main-admin only, rate-limited, auditable and restricted to the registered email', async () => {
+  const request = randomUUID()
+  await assert.rejects(as('authenticated', other, () => rpc('begin_member_recovery', [customerId, request])), /Main-admin/)
+  const claim = await as('authenticated', admin, () => rpc('begin_member_recovery', [customerId, request]))
+  assert.equal(claim.shouldSend, true)
+  assert.equal(claim.email, 'customer@test.invalid')
+  assert.equal((await as('authenticated', admin, () => rpc('begin_member_recovery', [customerId, request]))).shouldSend, false)
+  await assert.rejects(as('authenticated', admin, () => rpc('begin_member_recovery', [customerId, randomUUID()])), /rate limit/)
+  await assert.rejects(as('authenticated', admin, () => rpc('finish_member_recovery', [request, true, null])), /permission denied/)
+  await as('service_role', null, () => rpc('finish_member_recovery', [request, true, null]))
+  assert.equal((await one('select state from private.account_recovery_requests where id=$1', [request])).state, 'sent')
+  assert.equal((await one("select count(*) as n from private.audit_logs where action='account.recovery_requested' and target_id=$1", [customerId])).n, 1)
 })
