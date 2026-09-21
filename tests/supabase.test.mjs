@@ -392,16 +392,64 @@ test('email and normalized verified phone identify one membership; metadata cann
   await assert.rejects(query("insert into auth.users(id,email) values($1,'customer@test.invalid')", [randomUUID()]), /unique/)
   const uid = randomUUID()
   await query("insert into auth.users(id,email,email_confirmed_at,phone,phone_confirmed_at,raw_user_meta_data) values($1,'verify@test.invalid',now(),'61412345678',null,$2)", [uid, { mobile: '61400000001', phone_verified: true }])
-  assert.equal((await as('authenticated', uid, () => rpc('member_onboarding', []))).needsPhone, true)
-  await assert.rejects(as('authenticated', uid, () => rpc('complete_registration', [{ terms: 'test-v1', privacy: 'test-v1' }])), /Verify your mobile/)
-  assert.equal((await one('select count(*) as n from public.customers where auth_user_id=$1', [uid])).n, 0)
+  assert.equal((await as('authenticated', uid, () => rpc('member_onboarding', []))).needsPhone, false)
+  assert.equal((await one('select mobile from public.customers where auth_user_id=$1', [uid])).mobile, '')
   await query('update auth.users set phone_confirmed_at=now() where id=$1', [uid])
   const id = await as('authenticated', uid, () => rpc('complete_registration', [{ terms: 'test-v1', privacy: 'test-v1' }]))
   assert.equal((await one('select mobile from public.customers where id=$1', [id])).mobile, '+61412345678')
   await assert.rejects(query("insert into public.customers(mobile) values('+61412345678')"), /unique/)
   await assert.rejects(as('authenticated', uid, () => rpc('update_profile', [{ mobile: '0499 999 999' }])), /SMS verification/)
   await query('update auth.users set phone_confirmed_at=null where id=$1', [uid])
+  assert.equal((await as('authenticated', uid, () => query('select * from public.customers'))).rows.length, 1)
+})
+
+test('email-only onboarding activates exactly one membership without inventing policy consent', async () => {
+  const uid = randomUUID()
+  await query("insert into auth.users(id,email,email_confirmed_at,phone,phone_confirmed_at,raw_user_meta_data) values($1,'email-only@test.invalid',now(),null,null,$2)", [uid, { mobile: '+61400000001', phone_verified: true }])
+  for (let i = 0; i < 3; i++) {
+    const state = await as('authenticated', uid, () => rpc('member_onboarding', []))
+    assert.equal(state.needsEmail, false)
+    assert.equal(state.needsPhone, false)
+    assert.equal(state.needsConsent, false)
+  }
+  const row = await one('select id,status,mobile from public.customers where auth_user_id=$1', [uid])
+  assert.equal(row.status, 'active')
+  assert.equal(row.mobile, '')
+  assert.equal((await one('select count(*) as n from public.loyalty_accounts where customer_id=$1', [row.id])).n, 1)
+  assert.equal((await one('select count(*) as n from public.consent_events where customer_id=$1', [row.id])).n, 0)
+  await query("update public.customers set status='suspended' where id=$1", [row.id])
+  await assert.rejects(as('authenticated', uid, () => rpc('member_onboarding', [])), /not active/)
   assert.equal((await as('authenticated', uid, () => query('select * from public.customers'))).rows.length, 0)
+})
+
+test('unverified email and forged metadata cannot activate membership', async () => {
+  const uid = randomUUID()
+  await query("insert into auth.users(id,email,email_confirmed_at,raw_user_meta_data) values($1,'unverified@test.invalid',null,$2)", [uid, { email_verified: true, role: 'admin', registrationConsent: { terms: 'test-v1', privacy: 'test-v1' } }])
+  assert.equal((await as('authenticated', uid, () => rpc('member_onboarding', []))).needsEmail, true)
+  await assert.rejects(as('authenticated', uid, () => rpc('ensure_profile', [{}])), /Verify your email/)
+  assert.equal((await one('select count(*) as n from public.customers where auth_user_id=$1', [uid])).n, 0)
+})
+
+test('sign-up document choices are recorded after verification, once only', async () => {
+  const uid = randomUUID()
+  await query("insert into auth.users(id,email,email_confirmed_at,phone,phone_confirmed_at,raw_user_meta_data) values($1,'signup-choice@test.invalid',now(),null,null,$2)", [uid, { registrationConsent: { terms: 'test-v1', privacy: 'test-v1' } }])
+  await as('authenticated', uid, () => rpc('member_onboarding', []))
+  await as('authenticated', uid, () => rpc('member_onboarding', []))
+  assert.equal((await one('select count(*) as n from public.consent_events where actor_user_id=$1', [uid])).n, 2)
+})
+
+test('missing policies never block verified-email membership or fabricate agreement', async () => {
+  await db.exec('begin; truncate public.policy_versions cascade')
+  try {
+    const uid = randomUUID()
+    await query("insert into auth.users(id,email,email_confirmed_at,phone,phone_confirmed_at) values($1,'no-policy@test.invalid',now(),null,null)", [uid])
+    const state = await as('authenticated', uid, () => rpc('member_onboarding', []))
+    assert.equal(state.needsPolicies, true)
+    assert.equal(state.needsConsent, false)
+    const id = await as('authenticated', uid, () => rpc('ensure_profile', [{}]))
+    assert.ok(id)
+    assert.equal((await one('select count(*) as n from public.consent_events where customer_id=$1', [id])).n, 0)
+  } finally { await db.exec('rollback') }
 })
 
 test('consent choices are append-only, owner-scoped and cannot be bypassed through profile preferences', async () => {
@@ -432,6 +480,7 @@ test('closing an account requires its disclosure and keeps history without trans
   assert.equal((await one('select count(*) as n from private.account_closures where customer_id=$1', [id])).n, 1)
   assert.equal((await one('select count(*) as n from public.consent_events where customer_id=$1', [id])).n, 2)
   await assert.rejects(as('authenticated', uid, () => rpc('ensure_profile', [{}])), /not active/)
+  await assert.rejects(as('authenticated', uid, () => rpc('member_onboarding', [])), /not active/)
   await assert.rejects(as('authenticated', uid, () => rpc('spin_wheel', [randomUUID()])), /active customer/)
 })
 

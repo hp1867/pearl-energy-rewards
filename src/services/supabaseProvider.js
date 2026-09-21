@@ -3,6 +3,7 @@ import { authErrorMessage } from '../supabase/settings'
 import { tierForPoints } from './ids'
 import { normaliseNightDeal } from './nightDeals'
 import { normaliseMobile } from './memberIdentity'
+import { rememberSignInConsent, takeSignInConsent } from './signInConsent'
 
 const errors = new EventTarget(), changed = new EventTarget(), inflight = new Map()
 function report(error) {
@@ -84,6 +85,13 @@ async function currentCustomer() {
   if (!user) throw new Error('Please sign in again')
   const onboarding = await rpc('member_onboarding')
   if (onboarding.needsEmail || onboarding.needsPhone || onboarding.needsConsent) return { uid: user.id, email: user.email, mobile: user.user_metadata?.mobile || '', onboarding }
+  const consent = takeSignInConsent()
+  let consentNotice = onboarding.consentWarning ? 'Your membership is active, but the terms acknowledgement could not be saved. Review the current documents in Account & Privacy.' : undefined
+  if (consent) {
+    // Policy changes/network failures must not undo a verified member's login.
+    const result = await requireSupabase().rpc('complete_registration', { p_versions: consent }).catch(() => ({ error: true }))
+    if (result.error) consentNotice = 'Your sign-in succeeded, but the terms acknowledgement could not be saved. You can review the current documents in Account & Privacy.'
+  }
   await rpc('ensure_profile')
   let row = await checked(supabase.from('customers').select('*').eq('auth_user_id', user.id).maybeSingle())
   if (!row) { await rpc('ensure_profile'); row = await checked(supabase.from('customers').select('*').eq('auth_user_id', user.id).single()) }
@@ -92,7 +100,7 @@ async function currentCustomer() {
     checked(supabase.from('transactions').select('id,event_type,total_cents,points_delta,occurred_at,receipt_number,stations(name),loyalty_ledger(delta)').eq('customer_id', row.id).order('occurred_at', { ascending: false }).order('id').limit(50)),
     rpc('campaign_status'),
   ])
-  return { ...customerRow(row, account, user.email), ...campaign, transactions: history.map(t => ({ id: t.id, type: t.event_type, amount: t.total_cents / 100 * (t.event_type === 'sale' ? 1 : -1),
+  return { ...customerRow(row, account, user.email), ...campaign, consentNotice, transactions: history.map(t => ({ id: t.id, type: t.event_type, amount: t.total_cents / 100 * (t.event_type === 'sale' ? 1 : -1),
     points: (t.loyalty_ledger || []).reduce((sum, entry) => sum + Number(entry.delta), 0), store: t.stations?.name || 'Pearl Energy', date: new Date(t.occurred_at).toLocaleDateString('en-AU'), occurredAt: t.occurred_at, receiptNumber: t.receipt_number })) }
 }
 async function getCoupons(uid) {
@@ -124,18 +132,23 @@ export function createSupabaseProvider() {
       } catch (error) { cb(null); onError?.(error); report(error); return () => { active = false } }
     },
     async signUp(fields) {
-      const mobile = normaliseMobile(fields.mobile)
       const { data: result, error } = await requireSupabase().auth.signUp({ email: fields.email.trim(), password: fields.password,
-        options: { emailRedirectTo: authRedirect(), data: { firstName: fields.firstName, lastName: fields.lastName, mobile, dob: fields.dob || null } } })
+        options: { emailRedirectTo: authRedirect(), data: { firstName: fields.firstName, lastName: fields.lastName, dob: fields.dob || null, registrationConsent: fields.registrationConsent || null } } })
       if (error) throw error
       return { requiresConfirmation: !result.session }
     },
-    async signIn({ email, password }) { await checked(requireSupabase().auth.signInWithPassword({ email: email.trim(), password })) },
-    async signInWithProvider(name) {
+    async signIn({ email, password, registrationConsent }) {
+      rememberSignInConsent(registrationConsent)
+      try { await checked(requireSupabase().auth.signInWithPassword({ email: email.trim(), password })) }
+      catch (error) { rememberSignInConsent(null); throw error }
+    },
+    async signInWithProvider(name, registrationConsent) {
       const provider = name.toLowerCase()
       if (!['google','apple'].includes(provider)) throw new Error('Unsupported sign-in provider')
       if (!(await getAuthOptions())[provider]) throw new Error('This sign-in option is not available yet. Please use email and password.')
-      return checked(requireSupabase().auth.signInWithOAuth({ provider, options: { redirectTo: authRedirect() } }))
+      rememberSignInConsent(registrationConsent)
+      try { return await checked(requireSupabase().auth.signInWithOAuth({ provider, options: { redirectTo: authRedirect() } })) }
+      catch (error) { rememberSignInConsent(null); throw error }
     },
     async resetPassword(email) { return checked(requireSupabase().auth.resetPasswordForEmail(email.trim(), { redirectTo: `${authRedirect()}?reset=1` })) },
     async setPassword(password) { return checked(requireSupabase().auth.updateUser({ password })) },
@@ -165,7 +178,7 @@ export function createSupabaseProvider() {
       }
       return result
     },
-    async signOutUser() { return checked(requireSupabase().auth.signOut({ scope: 'local' })) },
+    async signOutUser() { rememberSignInConsent(null); return checked(requireSupabase().auth.signOut({ scope: 'local' })) },
     subscribeCustomer(uid, cb, onError) { return watch([{ table: 'customers', filter: `auth_user_id=eq.${uid}` }, 'loyalty_accounts','transactions','campaigns'], currentCustomer, cb, onError) },
     async updateProfile(uid, fields) { await rpc('update_profile', { p_fields: fields }); changed.dispatchEvent(new Event('refresh')) },
     async redeemReward(uid, reward) { const result = await mutate('redeem_reward', { p_reward_id: String(reward.id) }); return { ...result, coupon: result.coupon && couponRow(result.coupon) } },

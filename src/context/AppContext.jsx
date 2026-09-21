@@ -81,7 +81,7 @@ export function AppProvider({ children }) {
     return result
   }
   const login = async creds => { await data.signIn(creds); notify('Welcome back') }
-  const loginProvider = name => data.signInWithProvider(name)
+  const loginProvider = (name, consent) => data.signInWithProvider(name, consent)
   const logout = async () => { await data.signOutUser(); setTab('home'); setOverlay(null); setConnectionError(''); notify('Logged out') }
   const redeemReward = async reward => {
     if (!member) return { ok: false, message: 'Please log in first' }

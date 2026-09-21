@@ -7,16 +7,16 @@ The active backend is PostgreSQL and Supabase Auth in the owner-confirmed Sydney
 ```text
 Email/password or enabled Google sign-in
   -> Supabase authentication
-  -> confirmed email + SMS-verified, unique phone
-  -> accept published terms/privacy versions
+  -> confirmed email (email link or verified Google identity)
+  -> automatically provision/activate membership on first app session
   -> active membership + stable customer UUID + loyalty account
 
 Admin sign-in -> live staff access check -> main-admin or assigned-station tools
 ```
 
-One email and one verified phone identify a membership, not just a unique email/phone pair. Supabase Auth enforces credential uniqueness, with a second unique normalized-phone index in the domain database. Australian 04... and +614... normalize to the same number. Editable metadata is never proof of phone ownership or staff authority. Phone changes require an authenticated SMS challenge.
+Email-first policy, 21 September 2026: Supabase Auth owns email verification and credential uniqueness. SMS collection/verification is deferred. The normalized verified-phone unique index remains for future use, but unverified metadata cannot reserve a phone or prove ownership. Without SMS, the system cannot promise one human per phone number. Closed/suspended identities cannot reactivate themselves; ordinary sign-in never grants staff privileges.
 
-Authentication and membership activation are distinct. Without an SMS provider, a customer may authenticate but cannot activate loyalty membership. There is no fake verification, automatic first-user-admin or silent demo fallback.
+The authenticated onboarding RPC checks the real Auth email confirmation, provisions a stable customer and loyalty account under a row lock, and activates pending membership automatically. Repeated calls cannot duplicate accounts. Missing published policies do not gate access. No consent is fabricated: when documents are available, the sign-in screen displays them with an agreement notice, and records those versions after successful authentication. Existing sessions do not retroactively agree to unseen documents. Marketing remains separately opt-in. No fake verification, automatic first-user-admin or silent demo fallback exists.
 
 Immutable `policy_versions` stores business-approved text. `consent_events` records exact terms/privacy versions and optional marketing acceptance/withdrawal. Marketing is off by default. Self-service closure requires the current disclosure and typing CLOSE; it disables loyalty access but preserves history. No account merging, point transfers or duplicate-account support workflow is provided. Closure is not immediate erasure; retention/deletion procedures need a separate approved policy.
 

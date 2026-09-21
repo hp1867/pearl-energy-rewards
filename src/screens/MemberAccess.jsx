@@ -36,25 +36,20 @@ export function PhoneVerification({ initial = '', onVerified }) {
 
 export default function MemberOnboarding() {
   const { member, retryConnection, logout } = useApp()
-  const [policies, loadError] = usePolicies(), [accepted, setAccepted] = useState(false)
-  const [error, setError] = useState(''), [busy, setBusy] = useState(false)
-  const finish = async () => {
-    if (busy || !accepted || !policies?.terms || !policies?.privacy) return
-    setBusy(true); setError('')
-    try { await data.completeRegistration({ terms: policies.terms.version, privacy: policies.privacy.version }); retryConnection() } catch (e) { setError(e.message) } finally { setBusy(false) }
+  const [notice, setNotice] = useState(''), [busy, setBusy] = useState(false)
+  const resend = async () => {
+    setBusy(true)
+    try { await data.resendConfirmation(member.email); setNotice('Confirmation email requested. Check your inbox and spam folder.') }
+    catch (error) { setNotice(error.message) }
+    finally { setBusy(false) }
   }
   return <div className="screen"><div className="scroll" style={{ padding: '48px 22px 30px' }}>
-    <h1 style={{ marginBottom: 12 }}>Activate your membership</h1>
-    <p style={{ marginBottom: 20 }}>Signed in as {member.email}. Confirm your phone and membership agreement to start earning points.</p>
-    {member.onboarding.needsEmail ? <p role="alert">Confirm your email before continuing.</p> : member.onboarding.needsPhone ? <PhoneVerification initial={member.mobile} onVerified={retryConnection} /> : <p role="status" style={box}>Your mobile number is verified.</p>}
-    {!policies && !loadError && <p>Loading membership documents…</p>}
-    {policies && (!policies.terms || !policies.privacy) && <p role="status" style={box}>Membership registration is not available yet. Pearl Energy needs to publish its terms and privacy notice. Your account is not activated and no points have been changed.</p>}
-    <Policy policy={policies?.terms} title="Membership terms" /><Policy policy={policies?.privacy} title="Privacy notice" />
-    {policies?.terms && policies?.privacy && <label style={{ display: 'flex', gap: 10, marginBottom: 18 }}><input type="checkbox" checked={accepted} onChange={e => setAccepted(e.target.checked)} />I accept these membership terms and acknowledge this privacy notice. Accounts, points and coupons cannot be merged.</label>}
-    {(error || loadError) && <p role="alert" style={{ color: '#a32424', marginBottom: 14 }}>{error || loadError}</p>}
-    <button className="btn" disabled={busy || !accepted || member.onboarding.needsPhone || member.onboarding.needsEmail} onClick={finish}>{busy ? 'Activating…' : 'Activate membership'}</button>
-    <button className="btn ghost" style={{ marginTop: 12 }} onClick={retryConnection}>Refresh setup status</button>
-    <button className="btn ghost" style={{ marginTop: 12 }} onClick={logout}>Sign out</button>
+    <h1>Confirm your email</h1>
+    <p style={box}>Check {member.email} for your confirmation link. Once verified, your membership starts automatically and the home screen opens. No phone verification is needed.</p>
+    {notice && <p role="status">{notice}</p>}
+    <button className="btn" onClick={retryConnection}>I have confirmed my email</button>
+    <button className="btn ghost" disabled={busy} onClick={resend}>Resend confirmation email</button>
+    <button className="btn ghost" onClick={logout}>Sign out</button>
   </div></div>
 }
 
@@ -67,7 +62,7 @@ export function MemberSettings() {
   const run = async task => { if (busy) return; setBusy(true); setError(''); try { await task(); await refresh() } catch (e) { setError(e.message) } finally { setBusy(false) } }
   return <div className="screen" style={{ position: 'absolute', inset: 0, zIndex: 80 }}><div className="scroll" style={{ padding: '36px 22px' }}>
     <button className="btn ghost" onClick={() => setOverlay(null)}>Back to profile</button><h2 style={{ margin: '18px 0' }}>Account & Privacy</h2>
-    <PhoneVerification initial={member.mobile} onVerified={() => { setNotice('Phone verified. Your membership stays the same.'); retryConnection() }} />
+    <section style={box}><h3>Account security</h3><p>Your account uses verified email. Phone verification is on hold; no SMS provider is required.</p>{member.consentNotice && <p role="status">{member.consentNotice}</p>}</section>
     <section style={box}><h3>Marketing consent</h3><p>Optional marketing is off unless you opt in. Withdrawing it does not close your membership.</p>
       <button className="btn ghost" disabled={busy} onClick={() => run(async () => { await data.setMarketingConsent(!member.preferences?.marketing); setNotice(member.preferences?.marketing ? 'Marketing consent withdrawn.' : 'Marketing consent recorded.') })}>{member.preferences?.marketing ? 'Withdraw marketing consent' : 'Allow marketing messages'}</button>
     </section>

@@ -1,19 +1,27 @@
 import { useEffect, useState } from 'react'
-import { Mail, Phone, Lock, User, Calendar, Loader2 } from 'lucide-react'
+import { Mail, Lock, User, Calendar, Loader2 } from 'lucide-react'
 import { BrandLogo } from '../components/Brand'
 import { useApp } from '../context/AppContext'
 import { data } from '../services/data'
 import { authErrorMessage } from '../supabase/settings'
+import { latestPolicies } from '../services/memberIdentity'
 
 export default function AuthScreen() {
   const { signup, login, loginProvider, mode, user, connectionError, retryConnection, logout } = useApp()
   const [view, setView] = useState(user?.recovery ? 'password' : 'login')
-  const [terms, setTerms] = useState(false), [busy, setBusy] = useState(false)
+  const [busy, setBusy] = useState(false), [policies, setPolicies] = useState(null)
+  const [policyError, setPolicyError] = useState('')
+  const registrationConsent = policies?.terms && policies?.privacy ? { terms: policies.terms.version, privacy: policies.privacy.version } : null
   const [error, setError] = useState(''), [message, setMessage] = useState('')
   const [providers, setProviders] = useState([]), [needsConfirmation, setNeedsConfirmation] = useState(false)
   const [form, setForm] = useState({ firstName:'', lastName:'', email:'', mobile:'', dob:'', password:'', confirm:'' })
   const bind = key => ({ value:form[key], onChange:event => setForm(previous => ({ ...previous,[key]:event.target.value })) })
   useEffect(() => { if (user?.recovery) setView('password') }, [user?.recovery])
+  useEffect(() => {
+    let active = true
+    if (mode !== 'local') data.publicPolicies().then(rows => { if (active) setPolicies(latestPolicies(rows)) }).catch(() => { if (active) setPolicyError('Membership documents could not be loaded. Sign-in is still available; documents are also available in Account & Privacy.') })
+    return () => { active = false }
+  }, [mode])
   useEffect(() => {
     let active = true
     if (mode === 'local') setProviders(['Google','Apple'])
@@ -45,14 +53,13 @@ export default function AuthScreen() {
         window.history.replaceState({}, '', '/')
         setView('login'); setMessage('Password updated. Log in with your new password.')
       } else if (view === 'signup') {
-        if (!terms) throw new Error('Please acknowledge the account registration rule')
         if (form.password !== form.confirm) throw new Error('Passwords do not match')
-        const result = await signup(form)
+        const result = await signup({ ...form, registrationConsent })
         if (result?.requiresConfirmation) {
           setView('login'); setForm(previous => ({ ...previous,password:'',confirm:'' }))
           setMessage('Check your email to confirm your account, then return here to log in. Confirmation links should be opened in this browser.')
         }
-      } else await login({ email:form.email,password:form.password })
+      } else await login({ email:form.email,password:form.password, registrationConsent })
     })
   }
   const title = { login:'Welcome back',signup:'Create your account',reset:'Reset your password',password:'Choose a new password' }[view]
@@ -74,7 +81,6 @@ export default function AuthScreen() {
           </div>}
           {view !== 'password' && <Field icon={Mail} label="Email address" type="email" required autoComplete="email" {...bind('email')} />}
           {view === 'signup' && <>
-            <Field icon={Phone} label="Mobile number (verification required)" type="tel" required autoComplete="tel" maxLength={24} {...bind('mobile')} />
             <Field icon={Calendar} label="Date of birth (optional)" type="date" max={new Date().toISOString().slice(0,10)} {...bind('dob')} />
           </>}
           {view !== 'reset' && <Field icon={Lock} label={view === 'password' ? 'New password' : 'Password'} type="password" required minLength={view === 'login' ? undefined : 10} autoComplete={view === 'login' ? 'current-password' : 'new-password'} {...bind('password')} />}
@@ -82,10 +88,13 @@ export default function AuthScreen() {
             <Field icon={Lock} label="Confirm password" type="password" required minLength={10} autoComplete="new-password" {...bind('confirm')} />
             <p style={{ fontSize:12,color:'var(--muted)',marginBottom:14 }}>Use at least 10 characters.</p>
           </>}
-          {view === 'signup' && <label style={{ display:'flex',gap:10,fontSize:13,marginBottom:18 }}>
-            <input type="checkbox" checked={terms} onChange={event => setTerms(event.target.checked)} required />
-            One account per email and verified phone number. I will verify my phone and accept the membership terms and privacy notice before activating my membership. Accounts and points cannot be merged.
-          </label>}
+          {['login','signup'].includes(view) && <div style={{ fontSize:13,marginBottom:18,lineHeight:1.6 }}>
+            <p>Your membership starts automatically after your email is verified. No phone code or separate activation is needed.</p>
+            {registrationConsent ? <>
+              <p>By selecting Create account, Log in, or a social sign-in button below, you agree to the Membership Terms and acknowledge the Privacy Notice shown here. Marketing is optional and stays off unless you opt in.</p>
+              {['terms','privacy'].map(kind => <details key={kind}><summary>{kind === 'terms' ? 'Membership Terms' : 'Privacy Notice'} ({policies[kind].version})</summary><p style={{ whiteSpace:'pre-wrap',overflowWrap:'anywhere' }}>{policies[kind].body}</p></details>)}
+            </> : <p style={{ color:'var(--muted)' }}>{policyError || (policies ? 'Membership documents have not been published yet. No policy acceptance or marketing consent is recorded.' : 'Loading membership documents…')}</p>}
+          </div>}
           {view === 'login' && <button type="button" onClick={() => { setView('reset');setError('');setMessage('') }} style={{ display:'block',margin:'0 0 18px auto',fontSize:13,color:'var(--primary)',fontWeight:600 }}>Forgot password?</button>}
           {error && <div role="alert" style={errorStyle}>{error}</div>}
           {needsConfirmation && data.resendConfirmation && <button type="button" className="btn ghost" disabled={busy || !form.email} onClick={() => run(async () => { await data.resendConfirmation(form.email); setMessage('A new confirmation email has been requested. Open it in this browser.'); setNeedsConfirmation(false) })}>Resend confirmation email</button>}
@@ -97,7 +106,7 @@ export default function AuthScreen() {
         {['login','signup'].includes(view) && providers.length > 0 && <>
           <p style={{ textAlign:'center',margin:'20px 0',color:'var(--muted)',fontSize:12 }}>OR CONTINUE WITH</p>
           <div style={{ display:'flex',gap:12 }}>
-            {providers.map(name => <button key={name} className="btn ghost" disabled={busy} onClick={() => run(() => loginProvider(name))}>{name}</button>)}
+            {providers.map(name => <button key={name} className="btn ghost" disabled={busy} onClick={() => run(() => loginProvider(name, registrationConsent))}>{name}</button>)}
           </div>
         </>}
         <p style={{ textAlign:'center',marginTop:22,fontSize:14,color:'var(--ink-soft)' }}>

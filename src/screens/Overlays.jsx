@@ -627,7 +627,7 @@ export function EditProfile() {
           <div style={{ flex: 1 }}><span style={label}>First name</span><input style={input} {...bind('firstName')} placeholder="First name" /></div>
           <div style={{ flex: 1 }}><span style={label}>Last name</span><input style={input} {...bind('lastName')} placeholder="Last name" /></div>
         </div>
-        <div><span style={label}>Mobile</span><input style={input} type="tel" {...bind('mobile')} readOnly={mode === 'supabase'} placeholder="+61 4xx xxx xxx" />{mode === 'supabase' && <button onClick={() => setOverlay('account')} style={{ marginTop: 8, color: 'var(--blue)' }}>Change with SMS verification in Account settings</button>}</div>
+        <div><span style={label}>Mobile</span><input style={input} type="tel" {...bind('mobile')} readOnly={mode === 'supabase'} placeholder="+61 4xx xxx xxx" />{mode === 'supabase' && <button onClick={() => setOverlay('account')} style={{ marginTop: 8, color: 'var(--blue)' }}>Phone verification is on hold — account settings</button>}</div>
         <div><span style={label}>Date of birth</span><input style={input} type="date" {...bind('dob')} /></div>
         <div>
           <span style={label}>Email (login — cannot be changed here)</span>

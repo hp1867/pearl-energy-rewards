@@ -14,9 +14,9 @@ Functions: pos-api v2, member-support v1; existing push-dispatch v1 is unchanged
 
 ## Still needs owner setup
 
-- SMS provider: intentionally left for the owner. Phone ownership is required before loyalty activation; no verification bypass is enabled.
+- SMS provider: intentionally deferred. Email-confirmed members activate automatically; no SMS or extra activation step. Phone ownership is not claimed without real verification.
 - Confirmed owner email/account: no administrator has been guessed or auto-created.
-- Approved membership terms, privacy notice and account-closure disclosure: publish them through Policies & Consent once owner access is assigned. Activation needs terms/privacy.
+- Approved membership terms, privacy notice and account-closure disclosure: publish them through Policies & Consent once owner access is assigned. Missing documents no longer block membership, but unpublished documents cannot have acceptance recorded. Publish approved documents before public launch.
 - Production SMTP sender and real signup/recovery delivery verification. Google is enabled in the hosted provider settings, but a real OAuth round trip has not been verified here.
 - Real POS vendor/adapter, branch catalogs, SKU mappings, reward rules and integration signing keys.
 - Hosted backup coverage/retention, alert routing, real restore drill and launch/load/security acceptance tests.
