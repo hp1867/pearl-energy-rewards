@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { readFile, readdir } from 'node:fs/promises'
 import { PGlite } from '@electric-sql/pglite'
 import { randomUUID } from 'node:crypto'
+import { catalogRows, catalogImportSql } from '../scripts/shared-catalog.mjs'
 
 const db = new PGlite()
 const customer = randomUUID(), other = randomUUID(), admin = randomUUID(), manager = randomUUID()
@@ -482,6 +483,23 @@ test('closing an account requires its disclosure and keeps history without trans
   await assert.rejects(as('authenticated', uid, () => rpc('ensure_profile', [{}])), /not active/)
   await assert.rejects(as('authenticated', uid, () => rpc('member_onboarding', [])), /not active/)
   await assert.rejects(as('authenticated', uid, () => rpc('spin_wheel', [randomUUID()])), /active customer/)
+})
+
+test('shared catalog import is visible to both members and preserves admin edits on repeat', async () => {
+  const countsBefore = await one('select (select count(*) from public.customers) as customers,(select count(*) from public.loyalty_ledger) as ledger,(select count(*) from public.transactions) as transactions')
+  const rows = catalogRows('2099-10-21T12:59:59Z')
+  assert.equal(rows.length, 48)
+  assert.equal(rows.filter(row => row.kind === 'menu').length, 29)
+  const sql = catalogImportSql('2099-10-21T12:59:59Z')
+  await db.exec(sql)
+  const visible = uid => as('authenticated', uid, async () => (await query("select kind,id,title from public.catalog_items where kind in ('categories','menu','offers','rewards') order by kind,id")).rows)
+  assert.deepEqual(await visible(customer), await visible(other))
+  await query("update public.catalog_items set title='Admin-edited coffee',active=false,version=2 where kind='menu' and id='5'")
+  const audits = (await one("select count(*) as n from private.audit_logs where action='catalog.import'")).n
+  await db.exec(sql)
+  assert.deepEqual(await one("select title,active,version from public.catalog_items where kind='menu' and id='5'"), { title:'Admin-edited coffee',active:false,version:2 })
+  assert.equal((await one("select count(*) as n from private.audit_logs where action='catalog.import'")).n, audits)
+  assert.deepEqual(await one('select (select count(*) from public.customers) as customers,(select count(*) from public.loyalty_ledger) as ledger,(select count(*) from public.transactions) as transactions'), countsBefore)
 })
 
 test('support recovery is main-admin only, rate-limited, auditable and restricted to the registered email', async () => {
