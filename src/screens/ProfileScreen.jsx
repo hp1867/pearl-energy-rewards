@@ -3,7 +3,7 @@ import {
   Receipt, Gift, CreditCard, Bell, HelpCircle, LogOut, ChevronRight, Pencil, Star,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
-import { Header } from './OffersScreen'
+import { Header } from '../components/ScreenHeader'
 
 const formatJoined = (v) => {
   const d = new Date(v)

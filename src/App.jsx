@@ -1,59 +1,32 @@
-import { useState, useEffect } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useApp } from './context/AppContext'
 import SplashScreen from './screens/SplashScreen'
 import AuthScreen from './screens/AuthScreen'
 import HomeScreen from './screens/HomeScreen'
-import OffersScreen from './screens/OffersScreen'
-import MenuScreen from './screens/MenuScreen'
-import RewardsScreen from './screens/RewardsScreen'
-import ProfileScreen from './screens/ProfileScreen'
-import NightDealsScreen from './screens/NightDealsScreen'
 import BottomNav from './components/BottomNav'
 import Toast from './components/Toast'
 import MemberOnboarding, { MemberSettings } from './screens/MemberAccess'
-import { FuelPrices, StoreLocator, WalletCard, ScanModal, Receipts, Notifications, MyCoupons, EditProfile, HelpSupport, TiersInfo, SpinWheel, ItemDetails } from './screens/Overlays'
+import { lazyTabs, lazyOverlays } from './screens/lazyScreens'
+import ScreenBoundary from './components/ScreenBoundary'
 
 const TABS = {
   home: HomeScreen,
-  offers: OffersScreen,
-  menu: MenuScreen,
-  rewards: RewardsScreen,
-  profile: ProfileScreen,
+  ...lazyTabs,
 }
 
 const OVERLAYS = {
-  fuel: FuelPrices,
-  locator: StoreLocator,
-  wallet: WalletCard,
-  scan: ScanModal,
-  receipts: Receipts,
-  notifications: Notifications,
-  coupons: MyCoupons,
-  editprofile: EditProfile,
-  help: HelpSupport,
-  tiers: TiersInfo,
-  wheel: SpinWheel,
-  nightdeals: NightDealsScreen,
-  itemdetails: ItemDetails,
+  ...lazyOverlays,
   account: MemberSettings,
 }
 
 export default function App() {
-  const { authed, user, member, resolving, tab, overlay, profileError, connectionError, retryConnection, logout } = useApp()
-  const [splashDone, setSplashDone] = useState(false)
-
-  useEffect(() => {
-    const t = setTimeout(() => setSplashDone(true), 2400)
-    return () => clearTimeout(t)
-  }, [])
+  const { authed, user, member, resolving, tab, overlay, setOverlay, profileError, connectionError, retryConnection, logout } = useApp()
 
   const TabScreen = TABS[tab]
   const Overlay = overlay ? OVERLAYS[overlay] : null
 
-  // keep splash up until the brand timer AND auth state have both resolved;
-  // also while a signed-in user's live customer doc is still loading.
-  const splash = !splashDone || resolving || (!!user && !user.recovery && !member && !profileError)
+  // Keep every existing auth/profile gate; remove only the artificial brand delay.
+  const splash = resolving || (!!user && !user.recovery && !member && !profileError)
 
   return (
     <div className="stage">
@@ -80,7 +53,7 @@ export default function App() {
               {/* tab screens with crossfade */}
               <AnimatePresence mode="wait">
                 <motion.div key={tab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.22 }} style={{ position: 'absolute', inset: 0 }}>
-                  <TabScreen />
+                  <ScreenBoundary key={tab}><TabScreen /></ScreenBoundary>
                 </motion.div>
               </AnimatePresence>
 
@@ -88,7 +61,7 @@ export default function App() {
               <Toast />
 
               {/* full-screen overlays slide in over everything */}
-              <AnimatePresence>{Overlay && <Overlay key={overlay} />}</AnimatePresence>
+              <AnimatePresence>{Overlay && <ScreenBoundary key={overlay} overlay onClose={() => setOverlay(null)}><Overlay /></ScreenBoundary>}</AnimatePresence>
             </motion.div>
           )}
         </AnimatePresence>

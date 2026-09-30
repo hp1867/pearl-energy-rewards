@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { ChevronRight, Search } from 'lucide-react'
 import { useApp } from '../context/AppContext'
-import { Header } from './OffersScreen'
+import { Header } from '../components/ScreenHeader'
 
 export default function MenuScreen() {
   const { menu, categories, setOverlay, setOverlayArg } = useApp()

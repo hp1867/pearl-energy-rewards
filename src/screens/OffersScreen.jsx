@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { ChevronRight, Clock } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import Card3D from '../components/Card3D'
+import { Header } from '../components/ScreenHeader'
 
 const CATS = ['All', 'Fuel Deals', 'Food Deals', 'Coffee Deals', 'Imported Products', 'Seasonal Specials']
 
@@ -56,15 +57,6 @@ export default function OffersScreen() {
           ))}
         </div>
       </div>
-    </div>
-  )
-}
-
-export function Header({ title, sub }) {
-  return (
-    <div style={{ padding: '52px 20px 16px' }}>
-      <h1 style={{ fontSize: 28 }}>{title}</h1>
-      {sub && <p style={{ color: 'var(--muted)', marginTop: 4, fontSize: 14 }}>{sub}</p>}
     </div>
   )
 }

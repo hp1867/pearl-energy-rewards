@@ -4,6 +4,7 @@ import { tierForPoints } from './ids'
 import { normaliseNightDeal } from './nightDeals'
 import { normaliseMobile } from './memberIdentity'
 import { rememberSignInConsent, takeSignInConsent } from './signInConsent'
+import { catalogChangeAffectsKind } from './catalogInvalidation'
 
 const errors = new EventTarget(), changed = new EventTarget(), inflight = new Map()
 function report(error) {
@@ -37,7 +38,7 @@ async function mutate(name, payload) {
 }
 // Bounded initial fetch, Realtime invalidation, focus/reconnect refresh and a
 // polling fallback. No failure or empty collection ever returns demo records.
-function watch(tables, fetchRows, callback, onError, interval = 60000) {
+function watch(tables, fetchRows, callback, onError, interval = 60000, acceptsChange = () => true) {
   let stopped = false, loading = false, rerun = false
   const refresh = async () => {
     if (stopped) return
@@ -48,7 +49,7 @@ function watch(tables, fetchRows, callback, onError, interval = 60000) {
     finally { loading = false; if (rerun) { rerun = false; void refresh() } }
   }
   const channel = supabase?.channel(`pearl:${crypto.randomUUID()}`)
-  for (const spec of tables) channel?.on('postgres_changes', { event: '*', schema: 'public', ...(typeof spec === 'string' ? { table: spec } : spec) }, refresh)
+  for (const spec of tables) channel?.on('postgres_changes', { event: '*', schema: 'public', ...(typeof spec === 'string' ? { table: spec } : spec) }, change => { if (acceptsChange(change)) void refresh() })
   channel?.subscribe(status => { if (status === 'SUBSCRIBED') void refresh() })
   const timer = window.setInterval(() => { if (!document.hidden) void refresh() }, interval)
   window.addEventListener('focus', refresh); window.addEventListener('online', refresh); changed.addEventListener('refresh', refresh)
@@ -108,7 +109,7 @@ async function getCoupons(uid) {
   if (!row) return []
   return (await checked(supabase.from('coupons').select('*').eq('customer_id', row.id).order('issued_at', { ascending: false }).limit(100))).map(couponRow)
 }
-const catalog = (kind, cb) => watch(['catalog_items'], async () => (await checked(requireSupabase().from('catalog_items').select('*').eq('kind', kind).order('id').limit(500))).map(catalogRow), cb)
+const catalog = (kind, cb) => watch(['catalog_items'], async () => (await checked(requireSupabase().from('catalog_items').select('*').eq('kind', kind).order('id').limit(500))).map(catalogRow), cb, undefined, 60000, change => catalogChangeAffectsKind(kind, change))
 const fail = message => async () => ({ ok: false, message })
 export function createSupabaseProvider() {
   return {

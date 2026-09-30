@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { Home, Tag, UtensilsCrossed, Award, User, ScanLine } from 'lucide-react'
 import { useApp } from '../context/AppContext'
+import { preloadTab } from '../screens/lazyScreens'
 
 // Home · Offers · Menu · Rewards · Profile, with a floating Scan button.
 const TABS = [
@@ -54,6 +55,9 @@ export default function BottomNav() {
           return (
             <button
               key={t.id}
+              onPointerEnter={() => preloadTab(t.id)}
+              onFocus={() => preloadTab(t.id)}
+              onTouchStart={() => preloadTab(t.id)}
               onClick={() => { setTab(t.id); setOverlay(null) }}
               style={{
                 position: 'relative', flex: 1, maxWidth: 72,

@@ -6,9 +6,10 @@
   "description": "Pearl Energy Rewards - premium fuel station loyalty & rewards mobile app prototype",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/check-startup-budget.mjs",
     "preview": "vite preview --host",
-    "test": "npm run test:night-deals && npm run test:supabase && npm run test:pos && npm run test:auth",
+    "test": "npm run test:night-deals && npm run test:supabase && npm run test:pos && npm run test:auth && npm run test:performance",
+    "test:performance": "node --test tests/performance.test.mjs",
     "test:supabase": "node --test tests/supabase.test.mjs",
     "test:pos": "node --test tests/pos-contract.test.mjs tests/pos-intake.test.mjs",
     "test:auth": "node --test tests/auth-settings.test.mjs tests/member-identity.test.mjs",
